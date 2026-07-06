@@ -1,0 +1,49 @@
+import React, { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+
+export default function Signup() {
+  const { signUp } = useAuth()
+  const navigate = useNavigate()
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [asProvider, setAsProvider] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const { error } = await signUp(email, password, fullName, phone, asProvider)
+    setLoading(false)
+    if (error) setError(error)
+    else navigate(asProvider ? '/provider' : '/discover')
+  }
+
+  return (
+    <div className="page">
+      <div className="title" style={{ marginTop: 40 }}>Sign Up</div>
+      <div className="subtitle">Join GRIDNET AI</div>
+      <form onSubmit={handleSubmit}>
+        <input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        <input placeholder="Phone (e.g. 2547...)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <label className="row card" style={{ cursor: 'pointer' }}>
+          <span>Register as a Wi-Fi provider</span>
+          <input type="checkbox" style={{ width: 'auto' }} checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
+        </label>
+        {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 14 }}>{error}</div>}
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Creating account...' : 'Sign Up'}
+        </button>
+      </form>
+      <div className="text-dim" style={{ marginTop: 16, textAlign: 'center' }}>
+        Have an account? <Link to="/login" style={{ color: 'var(--accent-blue)' }}>Log in</Link>
+      </div>
+    </div>
+  )
+}
