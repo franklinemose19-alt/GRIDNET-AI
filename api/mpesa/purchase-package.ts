@@ -68,7 +68,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 'completed',
       metadata: { package_id: packageId },
     })
+// credit provider's wallet with their earning share
+    const { data: providerWallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, balance')
+      .eq('profile_id', pkg.provider_id)
+      .maybeSingle()
 
+    if (providerWallet) {
+      await supabaseAdmin
+        .from('wallets')
+        .update({ balance: Number(providerWallet.balance) + providerEarning, updated_at: new Date().toISOString() })
+        .eq('id', providerWallet.id)
+
+      await supabaseAdmin.from('wallet_transactions').insert({
+        wallet_id: providerWallet.id,
+        type: 'commission',
+        amount: providerEarning,
+        status: 'completed',
+        metadata: { package_id: packageId, from_purchase: true },
+      })
+    }
     // create purchase record
     const { data: purchase, error: purchaseError } = await supabaseAdmin
       .from('purchases')
