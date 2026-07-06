@@ -1,4 +1,227 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+
+interface Hotspot { id: string; name: string; address: string; health_score: number; is_featured: boolean }
+interface Package { id: string; hotspot_id: string; name: string; duration_minutes: number; price: number; active: boolean }
+interface Subscription { tier: string; status: string; current_period_end: string }
+
 export default function ProviderDashboard() {
-  return <div className="page"><div className="title" style={{ marginTop: 40 }}>Provider Dashboard</div><div className="text-dim">Coming next.</div></div>
+  const { user, profile, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const [hotspots, setHotspots] = useState<Hotspot[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [wallet, setWallet] = useState<{ id: string; balance: number } | null>(null)
+  const [earnings, setEarnings] = useState({ total: 0, count: 0 })
+
+  const [showAddHotspot, setShowAddHotspot] = useState(false)
+  const [hsName, setHsName] = useState('')
+  const [hsAddress, setHsAddress] = useState('')
+
+  const [addingPkgFor, setAddingPkgFor] = useState<string | null>(null)
+  const [pkgName, setPkgName] = useState('')
+  const [pkgDuration, setPkgDuration] = useState('')
+  const [pkgPrice, setPkgPrice] = useState('')
+
+  const [withdrawAmount, setWithdrawAmount] = useState('')
+  const [withdrawPhone, setWithdrawPhone] = useState('')
+
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    if (!user) return
+    setLoading(true)
+
+    const { data: hs } = await supabase.from('hotspots').select('id, name, address, health_score, is_featured').eq('provider_id', user.id)
+    if (hs) setHotspots(hs as Hotspot[])
+
+    const hotspotIds = (hs || []).map((h) => h.id)
+    if (hotspotIds.length > 0) {
+      const { data: pkgs } = await supabase.from('packages').select('id, hotspot_id, name, duration_minutes, price, active').in('hotspot_id', hotspotIds)
+      if (pkgs) setPackages(pkgs as Package[])
+    }
+
+    const { data: sub } = await supabase.from('provider_subscriptions')
+      .select('tier, status, current_period_end').eq('provider_id', user.id).eq('status', 'active').maybeSingle()
+    setSubscription(sub as Subscription | null)
+
+    const { data: w } = await supabase.from('wallets').select('id, balance').eq('profile_id', user.id).maybeSingle()
+    if (w) setWallet(w as any)
+
+    const { data: purchases } = await supabase.from('purchases')
+      .select('provider_earning, package_id, packages!inner(provider_id)')
+      .eq('packages.provider_id', user.id).eq('status', 'completed')
+    if (purchases) {
+      const total = purchases.reduce((sum: number, p: any) => sum + Number(p.provider_earning), 0)
+      setEarnings({ total, count: purchases.length })
+    }
+
+    setLoading(false)
+  }
+
+  async function handleAddHotspot(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user) return
+    setBusy(true)
+    setError('')
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { error: insertErr } = await supabase.from('hotspots').insert({
+          provider_id: user.id, name: hsName, address: hsAddress,
+          latitude: pos.coords.latitude, longitude: pos.coords.longitude,
+        })
+        if (insertErr) setError(insertErr.message)
+        else { setHsName(''); setHsAddress(''); setShowAddHotspot(false); await load() }
+        setBusy(false)
+      },
+      () => { setError('Enable location to register a hotspot at your current position.'); setBusy(false) }
+    )
+  }
+
+  async function handleAddPackage(e: React.FormEvent, hotspotId: string) {
+    e.preventDefault()
+    if (!user) return
+    setBusy(true)
+    setError('')
+
+    const { error: insertErr } = await supabase.from('packages').insert({
+      provider_id: user.id, hotspot_id: hotspotId, name: pkgName,
+      duration_minutes: Number(pkgDuration), price: Number(pkgPrice),
+    })
+    if (insertErr) setError(insertErr.message)
+    else { setPkgName(''); setPkgDuration(''); setPkgPrice(''); setAddingPkgFor(null); await load() }
+    setBusy(false)
+  }
+
+  async function handleSubscribe(tier: 'pro' | 'premium') {
+    if (!user) return
+    setBusy(true)
+    setError('')
+    const res = await fetch('/api/create-subscription', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId: user.id, tier }),
+    })
+    const data = await res.json()
+    if (!res.ok) setError(data.error)
+    else await load()
+    setBusy(false)
+  }
+
+  async function handleWithdraw(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user) return
+    setBusy(true)
+    setError('')
+    const res = await fetch('/api/request-withdrawal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerId: user.id, amount: Number(withdrawAmount),
+        mpesaNumber: withdrawPhone.startsWith('254') ? withdrawPhone : `254${withdrawPhone.replace(/^0/, '')}`,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) setError(data.error)
+    else { setWithdrawAmount(''); setWithdrawPhone(''); await load() }
+    setBusy(false)
+  }
+
+  if (loading) return <div className="page center-screen">Loading dashboard...</div>
+
+  return (
+    <div className="page">
+      <div className="row" style={{ marginBottom: 20 }}>
+        <div>
+          <div className="title">Provider Dashboard</div>
+          <div className="subtitle" style={{ marginBottom: 0 }}>{profile?.business_name || profile?.full_name}</div>
+        </div>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>Sign out</button>
+      </div>
+
+      {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
+
+      <div className="card">
+        <div className="row"><span className="text-dim">Wallet Balance</span><span style={{ fontWeight: 700 }}>KSh {wallet?.balance.toFixed(2) ?? '0.00'}</span></div>
+        <div className="row"><span className="text-dim">Total Earned</span><span style={{ fontWeight: 700 }}>KSh {earnings.total.toFixed(2)}</span></div>
+        <div className="row"><span className="text-dim">Completed Sales</span><span>{earnings.count}</span></div>
+      </div>
+
+      <div className="card">
+        <div className="row" style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>Subscription</span>
+          <span className="badge badge-featured">{subscription?.tier?.toUpperCase() || 'FREE'}</span>
+        </div>
+        {subscription ? (
+          <div className="text-dim">Renews {new Date(subscription.current_period_end).toLocaleDateString()}</div>
+        ) : (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-primary" disabled={busy} onClick={() => handleSubscribe('pro')}>Go Pro</button>
+            <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('premium')}>Go Premium</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>My Hotspots</div>
+      {hotspots.map((h) => (
+        <div key={h.id} className="card">
+          <div className="row" style={{ marginBottom: 4 }}>
+            <div style={{ fontWeight: 600 }}>{h.name}</div>
+            {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
+          </div>
+          <div className="text-dim" style={{ marginBottom: 10 }}>{h.address} · Health {h.health_score}</div>
+
+          {packages.filter((p) => p.hotspot_id === h.id).map((p) => (
+            <div key={p.id} className="row" style={{ padding: '6px 0', borderTop: '1px solid var(--border)' }}>
+              <span>{p.name} ({p.duration_minutes}min)</span>
+              <span>KSh {p.price}</span>
+            </div>
+          ))}
+
+          {addingPkgFor === h.id ? (
+            <form onSubmit={(e) => handleAddPackage(e, h.id)} style={{ marginTop: 10 }}>
+              <input placeholder="Package name (e.g. 1 Hour Pass)" value={pkgName} onChange={(e) => setPkgName(e.target.value)} required />
+              <input type="number" placeholder="Duration (minutes)" value={pkgDuration} onChange={(e) => setPkgDuration(e.target.value)} required />
+              <input type="number" placeholder="Price (KSh)" value={pkgPrice} onChange={(e) => setPkgPrice(e.target.value)} required />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-primary" disabled={busy} type="submit">Add Package</button>
+                <button className="btn btn-secondary" type="button" onClick={() => setAddingPkgFor(null)}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setAddingPkgFor(h.id)}>+ Add Package</button>
+          )}
+        </div>
+      ))}
+
+      {showAddHotspot ? (
+        <form onSubmit={handleAddHotspot} className="card">
+          <input placeholder="Hotspot name" value={hsName} onChange={(e) => setHsName(e.target.value)} required />
+          <input placeholder="Address" value={hsAddress} onChange={(e) => setHsAddress(e.target.value)} required />
+          <div className="text-dim" style={{ marginBottom: 10 }}>Uses your current location for coordinates</div>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-primary" disabled={busy} type="submit">Register Hotspot</button>
+            <button className="btn btn-secondary" type="button" onClick={() => setShowAddHotspot(false)}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button className="btn btn-primary" onClick={() => setShowAddHotspot(true)}>+ Register New Hotspot</button>
+      )}
+
+      <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>Withdraw to M-Pesa</div>
+      <form onSubmit={handleWithdraw} className="card">
+        <input type="number" placeholder="Amount (KSh)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required />
+        <input placeholder="M-Pesa phone (e.g. 0712345678)" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} required />
+        <button className="btn btn-primary" disabled={busy} type="submit">Request Withdrawal</button>
+      </form>
+
+      <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => navigate('/discover')}>View as User</button>
+    </div>
+  )
 }
