@@ -23,6 +23,9 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
+          <Route path="/hotspot/:id" element={
+          <ProtectedRoute><div className="page">Hotspot detail coming next
+          </div></ProtectedRoute>} />
           <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
