@@ -1,3 +1,4 @@
+import HotspotDetail from './pages/HotspotDetail'
 import './index.css'
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -26,7 +27,10 @@ export default function App() {
           <Route path="/hotspot/:id" element={
           <ProtectedRoute><div className="page">Hotspot detail coming next
           </div></ProtectedRoute>} />
-          <Route path="/discover" element={
+         <Route path="/hotspot/:id" element={
+  <ProtectedRoute><HotspotDetail /></ProtectedRoute>
+} />
+        <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
           <Route path="/wallet" element={
