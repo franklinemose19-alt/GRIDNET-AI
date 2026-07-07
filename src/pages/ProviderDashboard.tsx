@@ -104,7 +104,7 @@ export default function ProviderDashboard() {
     setBusy(false)
   }
 
-  async function handleSubscribe(tier: 'pro' | 'premium') {
+  async function handleSubscribe(tier: 'pro' | 'premium' | 'enterprise') {
     if (!user) return
     setBusy(true)
     setError('')
@@ -190,9 +190,10 @@ export default function ProviderDashboard() {
         {subscription ? (
           <div className="text-dim">Renews {new Date(subscription.current_period_end).toLocaleDateString()}</div>
         ) : (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" disabled={busy} onClick={() => handleSubscribe('pro')}>Go Pro</button>
             <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('premium')}>Go Premium</button>
+            <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('enterprise')}>Go Enterprise</button>
           </div>
         )}
       </div>
