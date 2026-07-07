@@ -15,10 +15,18 @@ interface RankedHotspot {
   rank_score: number
 }
 
+interface FeaturedHotspot {
+  id: string
+  name: string
+  address: string
+  health_score: number
+}
+
 export default function Discover() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [hotspots, setHotspots] = useState<RankedHotspot[]>([])
+  const [featured, setFeatured] = useState<FeaturedHotspot[]>([])
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
 
@@ -50,8 +58,11 @@ export default function Discover() {
       user_lat: lat,
       user_lng: lng,
     })
-
     if (!error && data) setHotspots(data as RankedHotspot[])
+
+    const { data: featuredData } = await supabase.rpc('featured_hotspots')
+    if (featuredData) setFeatured(featuredData as FeaturedHotspot[])
+
     setLoading(false)
   }
 
@@ -79,6 +90,26 @@ export default function Discover() {
         <button className="btn btn-secondary" onClick={() => navigate('/wallet')}>💰 Wallet</button>
         <button className="btn btn-secondary" onClick={() => navigate('/vouchers')}>🎟️ Vouchers</button>
       </div>
+
+      {featured.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>⭐ Featured Providers</div>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            {featured.map((f) => (
+              <div
+                key={f.id}
+                className="card"
+                style={{ minWidth: 160, flexShrink: 0, cursor: 'pointer' }}
+                onClick={() => navigate(`/hotspot/${f.id}`)}
+              >
+                <div className="badge badge-featured" style={{ marginBottom: 6 }}>FEATURED</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                <div className="text-dim" style={{ fontSize: 12 }}>{f.address}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading && <div className="text-dim">Finding hotspots near you...</div>}
 
