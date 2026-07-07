@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Rule 2: same phone number used across multiple profile accounts
-    const { data: dupPhones } = await supabaseAdmin.rpc('sql_noop').then(() => ({ data: null })).catch(() => ({ data: null }))
+    
     // (fallback to plain query since we can't run raw group-by via client easily)
     const { data: allProfiles } = await supabaseAdmin.from('profiles').select('id, phone').not('phone', 'is', null)
     const phoneMap: Record<string, string[]> = {}
