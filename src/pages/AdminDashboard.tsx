@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [scanMessage, setScanMessage] = useState('')
 
   useEffect(() => { load() }, [tab])
 
@@ -86,6 +87,21 @@ export default function AdminDashboard() {
     if (data) setSettings(data as Settings)
   }
 
+  async function runFraudScan() {
+    setBusy('scan')
+    setScanMessage('')
+    try {
+      const res = await fetch('/api/fraud-scan', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) setScanMessage(data.error || 'Scan failed')
+      else setScanMessage(`Scan complete: ${data.flagsCreated || 0} new flag(s) created`)
+      await loadFraud()
+    } catch {
+      setScanMessage('Network error running scan')
+    }
+    setBusy(null)
+  }
+
   async function updateFlagStatus(id: string, status: string) {
     setBusy(id)
     await supabase.from('fraud_flags').update({ status }).eq('id', id)
@@ -102,7 +118,6 @@ export default function AdminDashboard() {
 
   async function rejectWithdrawal(id: string, providerId: string, amount: number) {
     setBusy(id)
-    // refund the provider's wallet since the withdrawal is being rejected
     const { data: wallet } = await supabase.from('wallets').select('id, balance').eq('profile_id', providerId).maybeSingle()
     if (wallet) {
       await supabase.from('wallets').update({ balance: Number(wallet.balance) + Number(amount) }).eq('id', wallet.id)
@@ -157,6 +172,11 @@ export default function AdminDashboard() {
 
       {tab === 'fraud' && !loading && (
         <>
+          <button className="btn btn-primary" style={{ marginBottom: 12 }} disabled={busy === 'scan'} onClick={runFraudScan}>
+            {busy === 'scan' ? 'Scanning...' : 'Run Fraud Scan'}
+          </button>
+          {scanMessage && <div className="card text-dim">{scanMessage}</div>}
+
           {flags.length === 0 && <div className="card text-dim">No fraud flags — nothing suspicious detected yet.</div>}
           {flags.map((f) => (
             <div key={f.id} className="card">
@@ -201,22 +221,22 @@ export default function AdminDashboard() {
       {tab === 'settings' && !loading && settings && (
         <form onSubmit={saveSettings} className="card">
           <div className="text-dim" style={{ marginBottom: 6 }}>Commission Rate (0–1, e.g. 0.15 = 15%)</div>
-          <input type="number" step="0.01" value={settings.commission_rate} onChange={(e) => setSettings({ ...settings, commission_rate: Number(e.target.value) })} />
+          <input name="commissionRate" type="number" step="0.01" value={settings.commission_rate} onChange={(e) => setSettings({ ...settings, commission_rate: Number(e.target.value) })} />
 
           <div className="text-dim" style={{ marginBottom: 6 }}>Resale Commission Rate</div>
-          <input type="number" step="0.01" value={settings.resale_commission_rate} onChange={(e) => setSettings({ ...settings, resale_commission_rate: Number(e.target.value) })} />
+          <input name="resaleRate" type="number" step="0.01" value={settings.resale_commission_rate} onChange={(e) => setSettings({ ...settings, resale_commission_rate: Number(e.target.value) })} />
 
           <div className="text-dim" style={{ marginBottom: 6 }}>Minimum Withdrawal (KSh)</div>
-          <input type="number" value={settings.min_withdrawal} onChange={(e) => setSettings({ ...settings, min_withdrawal: Number(e.target.value) })} />
+          <input name="minWithdrawal" type="number" value={settings.min_withdrawal} onChange={(e) => setSettings({ ...settings, min_withdrawal: Number(e.target.value) })} />
 
           <div className="text-dim" style={{ marginBottom: 6 }}>Pro Tier Price (KSh/month)</div>
-          <input type="number" value={settings.pro_tier_price} onChange={(e) => setSettings({ ...settings, pro_tier_price: Number(e.target.value) })} />
+          <input name="proPrice" type="number" value={settings.pro_tier_price} onChange={(e) => setSettings({ ...settings, pro_tier_price: Number(e.target.value) })} />
 
           <div className="text-dim" style={{ marginBottom: 6 }}>Premium Tier Price (KSh/month)</div>
-          <input type="number" value={settings.premium_tier_price} onChange={(e) => setSettings({ ...settings, premium_tier_price: Number(e.target.value) })} />
+          <input name="premiumPrice" type="number" value={settings.premium_tier_price} onChange={(e) => setSettings({ ...settings, premium_tier_price: Number(e.target.value) })} />
 
           <div className="text-dim" style={{ marginBottom: 6 }}>Voucher Expiry (days)</div>
-          <input type="number" value={settings.voucher_expiry_days} onChange={(e) => setSettings({ ...settings, voucher_expiry_days: Number(e.target.value) })} />
+          <input name="voucherExpiry" type="number" value={settings.voucher_expiry_days} onChange={(e) => setSettings({ ...settings, voucher_expiry_days: Number(e.target.value) })} />
 
           <button className="btn btn-primary" type="submit" disabled={busy === 'settings'}>
             {busy === 'settings' ? 'Saving...' : 'Save Settings'}
