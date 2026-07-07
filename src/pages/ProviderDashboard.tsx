@@ -29,6 +29,9 @@ export default function ProviderDashboard() {
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawPhone, setWithdrawPhone] = useState('')
 
+  const [insight, setInsight] = useState('')
+  const [loadingInsight, setLoadingInsight] = useState(false)
+
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -133,6 +136,22 @@ export default function ProviderDashboard() {
     setBusy(false)
   }
 
+  async function loadInsight() {
+    if (!user) return
+    setLoadingInsight(true)
+    try {
+      const res = await fetch('/api/ai-insights', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: user.id }),
+      })
+      const data = await res.json()
+      setInsight(data.insight || 'Could not generate insight right now.')
+    } catch {
+      setInsight('Network error fetching insight.')
+    }
+    setLoadingInsight(false)
+  }
+
   if (loading) return <div className="page center-screen">Loading dashboard...</div>
 
   return (
@@ -151,6 +170,16 @@ export default function ProviderDashboard() {
         <div className="row"><span className="text-dim">Wallet Balance</span><span style={{ fontWeight: 700 }}>KSh {wallet?.balance.toFixed(2) ?? '0.00'}</span></div>
         <div className="row"><span className="text-dim">Total Earned</span><span style={{ fontWeight: 700 }}>KSh {earnings.total.toFixed(2)}</span></div>
         <div className="row"><span className="text-dim">Completed Sales</span><span>{earnings.count}</span></div>
+      </div>
+
+      <div className="card">
+        <div className="row" style={{ marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>🧠 AI Insights</span>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8 }} disabled={loadingInsight} onClick={loadInsight}>
+            {loadingInsight ? 'Thinking...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="text-dim">{insight || 'Tap Refresh to get AI-powered recommendations based on your sales data.'}</div>
       </div>
 
       <div className="card">
@@ -186,9 +215,9 @@ export default function ProviderDashboard() {
 
           {addingPkgFor === h.id ? (
             <form onSubmit={(e) => handleAddPackage(e, h.id)} style={{ marginTop: 10 }}>
-              <input placeholder="Package name (e.g. 1 Hour Pass)" value={pkgName} onChange={(e) => setPkgName(e.target.value)} required />
-              <input type="number" placeholder="Duration (minutes)" value={pkgDuration} onChange={(e) => setPkgDuration(e.target.value)} required />
-              <input type="number" placeholder="Price (KSh)" value={pkgPrice} onChange={(e) => setPkgPrice(e.target.value)} required />
+              <input name="pkgName" placeholder="Package name (e.g. 1 Hour Pass)" value={pkgName} onChange={(e) => setPkgName(e.target.value)} required />
+              <input name="pkgDuration" type="number" placeholder="Duration (minutes)" value={pkgDuration} onChange={(e) => setPkgDuration(e.target.value)} required />
+              <input name="pkgPrice" type="number" placeholder="Price (KSh)" value={pkgPrice} onChange={(e) => setPkgPrice(e.target.value)} required />
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn btn-primary" disabled={busy} type="submit">Add Package</button>
                 <button className="btn btn-secondary" type="button" onClick={() => setAddingPkgFor(null)}>Cancel</button>
@@ -202,8 +231,8 @@ export default function ProviderDashboard() {
 
       {showAddHotspot ? (
         <form onSubmit={handleAddHotspot} className="card">
-          <input placeholder="Hotspot name" value={hsName} onChange={(e) => setHsName(e.target.value)} required />
-          <input placeholder="Address" value={hsAddress} onChange={(e) => setHsAddress(e.target.value)} required />
+          <input name="hsName" placeholder="Hotspot name" value={hsName} onChange={(e) => setHsName(e.target.value)} required />
+          <input name="hsAddress" placeholder="Address" value={hsAddress} onChange={(e) => setHsAddress(e.target.value)} required />
           <div className="text-dim" style={{ marginBottom: 10 }}>Uses your current location for coordinates</div>
           <div className="row" style={{ gap: 8 }}>
             <button className="btn btn-primary" disabled={busy} type="submit">Register Hotspot</button>
@@ -216,8 +245,8 @@ export default function ProviderDashboard() {
 
       <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>Withdraw to M-Pesa</div>
       <form onSubmit={handleWithdraw} className="card">
-        <input type="number" placeholder="Amount (KSh)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required />
-        <input placeholder="M-Pesa phone (e.g. 0712345678)" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} required />
+        <input name="withdrawAmount" type="number" placeholder="Amount (KSh)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required />
+        <input name="withdrawPhone" placeholder="M-Pesa phone (e.g. 0712345678)" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} required />
         <button className="btn btn-primary" disabled={busy} type="submit">Request Withdrawal</button>
       </form>
 
