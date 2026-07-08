@@ -23,14 +23,17 @@ interface FeaturedHotspot {
 }
 
 export default function Discover() {
-  const { profile, signOut } = useAuth()
+  const { profile, user, signOut } = useAuth()
   const navigate = useNavigate()
   const [hotspots, setHotspots] = useState<RankedHotspot[]>([])
   const [featured, setFeatured] = useState<FeaturedHotspot[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
 
   useEffect(() => {
+    loadUnreadCount()
+
     if (!navigator.geolocation) {
       setLocationError('Location not supported on this device.')
       setLoading(false)
@@ -48,6 +51,16 @@ export default function Discover() {
       { enableHighAccuracy: true, timeout: 8000 }
     )
   }, [])
+
+  async function loadUnreadCount() {
+    if (!user) return
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('profile_id', user.id)
+      .eq('read', false)
+    setUnreadCount(count || 0)
+  }
 
   async function loadHotspots(lat: number, lng: number) {
     setLoading(true)
@@ -89,6 +102,19 @@ export default function Discover() {
         <button className="btn btn-secondary" onClick={() => navigate('/wallet')}>💰 Wallet</button>
         <button className="btn btn-secondary" onClick={() => navigate('/vouchers')}>🎟️ Vouchers</button>
         <button className="btn btn-secondary" onClick={() => navigate('/provider')}>📶 Sell Wi-Fi</button>
+        <button className="btn btn-secondary" style={{ position: 'relative' }} onClick={() => navigate('/notifications')}>
+          🔔 Notifications
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: -4, right: -4, background: 'var(--danger)', color: '#fff',
+              borderRadius: '50%', width: 18, height: 18, fontSize: 10, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+            }}>
+              {unreadCount}
+            </span>
+          )}
+        </button>
+        <button className="btn btn-secondary" onClick={() => navigate('/invite')}>🎁 Invite & Earn</button>
       </div>
 
       {featured.length > 0 && (
