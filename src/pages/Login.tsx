@@ -22,11 +22,15 @@ export default function Login() {
 
   return (
     <div className="page">
-      <div className="title" style={{ marginTop: 40 }}>Log In</div>
+      <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10, marginTop: 16 }} onClick={() => navigate('/')}>
+        ← Back
+      </button>
+
+      <div className="title" style={{ marginTop: 24 }}>Log In</div>
       <div className="subtitle">Welcome back</div>
       <form onSubmit={handleSubmit}>
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input name="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input name="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 14 }}>{error}</div>}
         <button className="btn btn-primary" type="submit" disabled={loading}>
           {loading ? 'Logging in...' : 'Log In'}
