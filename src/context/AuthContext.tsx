@@ -10,13 +10,14 @@ interface Profile {
   phone: string | null
   role: Role
   business_name: string | null
+  referral_code: string | null
 }
 
 interface AuthContextType {
   user: User | null
   profile: Profile | null
   loading: boolean
-  signUp: (email: string, password: string, fullName: string, phone: string, asProvider: boolean) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string, fullName: string, phone: string, asProvider: boolean, referralCode?: string) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -62,18 +63,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  async function signUp(email: string, password: string, fullName: string, phone: string, asProvider: boolean) {
+  async function signUp(email: string, password: string, fullName: string, phone: string, asProvider: boolean, referralCode?: string) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error: error.message }
     if (!data.user) return { error: 'Sign up failed, try again.' }
+
+    let referredBy: string | null = null
+    if (referralCode) {
+      const { data: referrer } = await supabase
+        .from('profiles').select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle()
+      if (referrer) referredBy = referrer.id
+    }
 
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
       full_name: fullName,
       phone,
       role: asProvider ? 'provider' : 'user',
+      referred_by: referredBy,
     })
     if (profileError) return { error: profileError.message }
+
+    if (referredBy) {
+      await supabase.from('referrals').insert({
+        referrer_id: referredBy,
+        referred_id: data.user.id,
+        status: 'pending',
+      })
+    }
 
     await loadProfile(data.user.id)
     return { error: null }
