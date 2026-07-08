@@ -7,6 +7,7 @@ import './index.css'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Pricing from './pages/Pricing'
 import Discover from './pages/Discover'
 import Wallet from './pages/Wallet'
 import Vouchers from './pages/Vouchers'
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
@@ -39,14 +41,11 @@ export default function App() {
           <Route path="/hotspot/:id" element={
             <ProtectedRoute><HotspotDetail /></ProtectedRoute>
           } />
-
-          {/* Any logged-in account can reach the Provider Dashboard now — no role gate.
-              Matches the "anyone can be the net" model: same account, no separate signup needed. */}
           <Route path="/provider" element={
             <ProtectedRoute><ProviderDashboard /></ProtectedRoute>
           } />
 
-          {/* Hidden admin route - never linked anywhere in the UI, still role-gated */}
+          {/* Hidden admin route - never linked anywhere in the UI */}
           <Route path="/gridnet-control-x7q" element={
             <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
           } />
