@@ -1,15 +1,18 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [asProvider, setAsProvider] = useState(false)
+  const [referralCode, setReferralCode] = useState(searchParams.get('ref') || '')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,7 +20,7 @@ export default function Signup() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await signUp(email, password, fullName, phone, asProvider)
+    const { error } = await signUp(email, password, fullName, phone, asProvider, referralCode || undefined)
     setLoading(false)
     if (error) setError(error)
     else navigate(asProvider ? '/provider' : '/discover')
@@ -36,6 +39,7 @@ export default function Signup() {
         <input name="phone" placeholder="Phone (e.g. 2547...)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
         <input name="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input name="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input name="referralCode" placeholder="Referral code (optional)" value={referralCode} onChange={(e) => setReferralCode(e.target.value)} />
         <label className="row card" style={{ cursor: 'pointer' }}>
           <span>Register as a Wi-Fi provider</span>
           <input name="asProvider" type="checkbox" style={{ width: 'auto' }} checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
