@@ -51,7 +51,6 @@ export default function Discover() {
 
   async function loadHotspots(lat: number, lng: number) {
     setLoading(true)
-    // keep featured status + voucher expiry fresh on every load (no cron needed on Hobby plan)
     await supabase.rpc('sync_featured_status')
 
     const { data, error } = await supabase.rpc('ranked_hotspots', {
@@ -86,9 +85,10 @@ export default function Discover() {
         </button>
       </div>
 
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+      <div className="row" style={{ marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
         <button className="btn btn-secondary" onClick={() => navigate('/wallet')}>💰 Wallet</button>
         <button className="btn btn-secondary" onClick={() => navigate('/vouchers')}>🎟️ Vouchers</button>
+        <button className="btn btn-secondary" onClick={() => navigate('/provider')}>📶 Sell Wi-Fi</button>
       </div>
 
       {featured.length > 0 && (
