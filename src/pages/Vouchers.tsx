@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -28,10 +29,15 @@ export default function Vouchers() {
   const [giftingId, setGiftingId] = useState<string | null>(null)
   const [giftPhone, setGiftPhone] = useState('')
 
+  const [qrVoucher, setQrVoucher] = useState<Voucher | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     load()
@@ -168,6 +174,28 @@ export default function Vouchers() {
     setBusy(null)
   }
 
+  async function handleShowQr(voucher: Voucher) {
+    setQrVoucher(voucher)
+    const dataUrl = await QRCode.toDataURL(voucher.code, { width: 240, margin: 2 })
+    setQrDataUrl(dataUrl)
+  }
+
+  function handlePrint() {
+    if (!printRef.current) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(`
+      <html>
+        <head><title>GRIDNET AI Voucher</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 40px;">
+          ${printRef.current.innerHTML}
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.print()
+  }
+
   function statusBadge(status: string) {
     const map: Record<string, string> = {
       unused: 'badge-health-good',
@@ -200,6 +228,21 @@ export default function Vouchers() {
       {successMsg && <div className="card" style={{ color: 'var(--accent-green)' }}>{successMsg}</div>}
       {loading && <div className="text-dim">Loading...</div>}
 
+      {qrVoucher && (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <div ref={printRef}>
+            <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>GRIDNET AI Voucher</div>
+            {qrDataUrl && <img src={qrDataUrl} alt="Voucher QR code" style={{ margin: '0 auto' }} />}
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 1, margin: '10px 0' }}>{qrVoucher.code}</div>
+            <div className="text-dim">Expires {new Date(qrVoucher.expires_at).toLocaleDateString()}</div>
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={handlePrint}>Print</button>
+            <button className="btn btn-secondary" onClick={() => setQrVoucher(null)}>Close</button>
+          </div>
+        </div>
+      )}
+
       {tab === 'mine' && !loading && (
         <>
           {myVouchers.length === 0 && <div className="card text-dim">No vouchers yet — buy a package to get one.</div>}
@@ -224,6 +267,7 @@ export default function Vouchers() {
                   </button>
                   <button className="btn btn-secondary" onClick={() => setListingId(v.id)}>Sell</button>
                   <button className="btn btn-secondary" onClick={() => setGiftingId(v.id)}>Gift</button>
+                  <button className="btn btn-secondary" onClick={() => handleShowQr(v)}>QR / Print</button>
                 </div>
               )}
 
