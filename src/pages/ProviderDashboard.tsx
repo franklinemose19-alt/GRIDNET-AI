@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 interface Hotspot { id: string; name: string; address: string; health_score: number; is_featured: boolean }
 interface Package { id: string; hotspot_id: string; name: string; duration_minutes: number; price: number; active: boolean }
 interface Subscription { tier: string; status: string; current_period_end: string }
+interface Suggestion { name: string; duration_minutes: number; price: number; data_limit_mb: number | null; speed_limit_mbps: number | null }
 
 export default function ProviderDashboard() {
   const { user, profile, signOut } = useAuth()
@@ -25,6 +26,11 @@ export default function ProviderDashboard() {
   const [pkgName, setPkgName] = useState('')
   const [pkgDuration, setPkgDuration] = useState('')
   const [pkgPrice, setPkgPrice] = useState('')
+
+  const [suggestingFor, setSuggestingFor] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [addingSuggestion, setAddingSuggestion] = useState<number | null>(null)
 
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawPhone, setWithdrawPhone] = useState('')
@@ -104,6 +110,45 @@ export default function ProviderDashboard() {
     setBusy(false)
   }
 
+  async function handleGetSuggestions(hotspotId: string) {
+    if (!user) return
+    setSuggestingFor(hotspotId)
+    setLoadingSuggestions(true)
+    setSuggestions([])
+    setError('')
+
+    try {
+      const res = await fetch('/api/ai-suggest-packages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: user.id, hotspotId }),
+      })
+      const data = await res.json()
+      if (!res.ok) setError(data.error)
+      else setSuggestions(data.suggestions || [])
+    } catch {
+      setError('Network error getting suggestions')
+    }
+    setLoadingSuggestions(false)
+  }
+
+  async function handleAddSuggestion(hotspotId: string, s: Suggestion, index: number) {
+    if (!user) return
+    setAddingSuggestion(index)
+    setError('')
+
+    const { error: insertErr } = await supabase.from('packages').insert({
+      provider_id: user.id, hotspot_id: hotspotId, name: s.name,
+      duration_minutes: s.duration_minutes, price: s.price,
+      data_limit_mb: s.data_limit_mb, speed_limit_mbps: s.speed_limit_mbps,
+    })
+    if (insertErr) setError(insertErr.message)
+    else {
+      setSuggestions((prev) => prev.filter((_, i) => i !== index))
+      await load()
+    }
+    setAddingSuggestion(null)
+  }
+
   async function handleSubscribe(tier: 'pro' | 'premium' | 'enterprise') {
     if (!user) return
     setBusy(true)
@@ -156,6 +201,10 @@ export default function ProviderDashboard() {
 
   return (
     <div className="page">
+      <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10, marginBottom: 12 }} onClick={() => navigate('/discover')}>
+        ← Back
+      </button>
+
       <div className="row" style={{ marginBottom: 20 }}>
         <div>
           <div className="title">Provider Dashboard</div>
@@ -225,7 +274,34 @@ export default function ProviderDashboard() {
               </div>
             </form>
           ) : (
-            <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setAddingPkgFor(h.id)}>+ Add Package</button>
+            <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <button className="btn btn-secondary" onClick={() => setAddingPkgFor(h.id)}>+ Add Package</button>
+              <button className="btn btn-secondary" onClick={() => handleGetSuggestions(h.id)}>✨ AI Suggest</button>
+            </div>
+          )}
+
+          {suggestingFor === h.id && (
+            <div style={{ marginTop: 12 }}>
+              {loadingSuggestions && <div className="text-dim">Generating suggestions...</div>}
+              {suggestions.map((s, i) => (
+                <div key={i} className="card" style={{ background: 'var(--surface-hover)' }}>
+                  <div className="row" style={{ marginBottom: 6 }}>
+                    <div style={{ fontWeight: 600 }}>{s.name}</div>
+                    <div style={{ fontWeight: 700 }}>KSh {s.price}</div>
+                  </div>
+                  <div className="text-dim" style={{ marginBottom: 10 }}>
+                    {s.duration_minutes} min{s.data_limit_mb ? ` · ${s.data_limit_mb}MB` : ' · Unlimited data'}
+                    {s.speed_limit_mbps ? ` · up to ${s.speed_limit_mbps} Mbps` : ''}
+                  </div>
+                  <button className="btn btn-primary" disabled={addingSuggestion === i} onClick={() => handleAddSuggestion(h.id, s, i)}>
+                    {addingSuggestion === i ? 'Adding...' : 'Add This Package'}
+                  </button>
+                </div>
+              ))}
+              {!loadingSuggestions && (
+                <button className="btn btn-secondary" onClick={() => setSuggestingFor(null)}>Close Suggestions</button>
+              )}
+            </div>
           )}
         </div>
       ))}
@@ -250,8 +326,6 @@ export default function ProviderDashboard() {
         <input name="withdrawPhone" placeholder="M-Pesa phone (e.g. 0712345678)" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} required />
         <button className="btn btn-primary" disabled={busy} type="submit">Request Withdrawal</button>
       </form>
-
-      <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => navigate('/discover')}>View as User</button>
     </div>
   )
 }
