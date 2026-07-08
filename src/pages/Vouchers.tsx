@@ -21,10 +21,16 @@ export default function Vouchers() {
   const [myVouchers, setMyVouchers] = useState<Voucher[]>([])
   const [marketVouchers, setMarketVouchers] = useState<Voucher[]>([])
   const [tab, setTab] = useState<'mine' | 'market'>('mine')
+
   const [listingId, setListingId] = useState<string | null>(null)
   const [listPrice, setListPrice] = useState('')
+
+  const [giftingId, setGiftingId] = useState<string | null>(null)
+  const [giftPhone, setGiftPhone] = useState('')
+
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -78,7 +84,6 @@ export default function Vouchers() {
     setBusy(voucherId)
     setError('')
 
-    // client-side update is fine here — RLS allows owner to update own voucher
     const { error: updateError } = await supabase
       .from('vouchers')
       .update({ status: 'listed', resale_price: price })
@@ -123,6 +128,46 @@ export default function Vouchers() {
     setBusy(null)
   }
 
+  async function handleGift(voucherId: string) {
+    if (!user || !giftPhone) return
+    setBusy(voucherId)
+    setError('')
+    setSuccessMsg('')
+
+    const normalizedPhone = giftPhone.startsWith('254') ? giftPhone : `254${giftPhone.replace(/^0/, '')}`
+
+    const { data: recipientId, error: lookupError } = await supabase.rpc('find_profile_by_phone', {
+      p_phone: normalizedPhone,
+    })
+
+    if (lookupError || !recipientId) {
+      setError('No GRIDNET AI user found with that phone number.')
+      setBusy(null)
+      return
+    }
+
+    if (recipientId === user.id) {
+      setError("You can't gift a voucher to yourself.")
+      setBusy(null)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('vouchers')
+      .update({ current_owner_id: recipientId, status: 'unused', resale_price: null })
+      .eq('id', voucherId)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      setSuccessMsg('Voucher gifted successfully!')
+      setGiftingId(null)
+      setGiftPhone('')
+      await load()
+    }
+    setBusy(null)
+  }
+
   function statusBadge(status: string) {
     const map: Record<string, string> = {
       unused: 'badge-health-good',
@@ -140,7 +185,7 @@ export default function Vouchers() {
       </button>
 
       <div className="title">Vouchers</div>
-      <div className="subtitle">Redeem, sell, or buy internet vouchers</div>
+      <div className="subtitle">Redeem, sell, gift, or buy internet vouchers</div>
 
       <div className="row" style={{ gap: 8, marginBottom: 16 }}>
         <button className={tab === 'mine' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setTab('mine')}>
@@ -152,6 +197,7 @@ export default function Vouchers() {
       </div>
 
       {error && <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>}
+      {successMsg && <div className="card" style={{ color: 'var(--accent-green)' }}>{successMsg}</div>}
       {loading && <div className="text-dim">Loading...</div>}
 
       {tab === 'mine' && !loading && (
@@ -171,14 +217,13 @@ export default function Vouchers() {
                 Expires {new Date(v.expires_at).toLocaleDateString()}
               </div>
 
-              {v.status === 'unused' && listingId !== v.id && (
-                <div className="row" style={{ gap: 8 }}>
+              {v.status === 'unused' && listingId !== v.id && giftingId !== v.id && (
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                   <button className="btn btn-primary" disabled={busy === v.id} onClick={() => handleRedeem(v.id)}>
                     {busy === v.id ? 'Starting...' : 'Redeem Now'}
                   </button>
-                  <button className="btn btn-secondary" onClick={() => setListingId(v.id)}>
-                    Sell
-                  </button>
+                  <button className="btn btn-secondary" onClick={() => setListingId(v.id)}>Sell</button>
+                  <button className="btn btn-secondary" onClick={() => setGiftingId(v.id)}>Gift</button>
                 </div>
               )}
 
@@ -195,6 +240,22 @@ export default function Vouchers() {
                       Confirm Listing
                     </button>
                     <button className="btn btn-secondary" onClick={() => setListingId(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {v.status === 'unused' && giftingId === v.id && (
+                <div>
+                  <input
+                    placeholder="Recipient's phone (e.g. 0712345678)"
+                    value={giftPhone}
+                    onChange={(e) => setGiftPhone(e.target.value)}
+                  />
+                  <div className="row" style={{ gap: 8 }}>
+                    <button className="btn btn-primary" disabled={busy === v.id} onClick={() => handleGift(v.id)}>
+                      {busy === v.id ? 'Gifting...' : 'Confirm Gift'}
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => setGiftingId(null)}>Cancel</button>
                   </div>
                 </div>
               )}
