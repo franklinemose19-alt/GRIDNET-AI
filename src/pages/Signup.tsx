@@ -25,16 +25,20 @@ export default function Signup() {
 
   return (
     <div className="page">
-      <div className="title" style={{ marginTop: 40 }}>Sign Up</div>
+      <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10, marginTop: 16 }} onClick={() => navigate('/')}>
+        ← Back
+      </button>
+
+      <div className="title" style={{ marginTop: 24 }}>Sign Up</div>
       <div className="subtitle">Join GRIDNET AI</div>
       <form onSubmit={handleSubmit}>
-        <input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-        <input placeholder="Phone (e.g. 2547...)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input name="fullName" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        <input name="phone" placeholder="Phone (e.g. 2547...)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+        <input name="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input name="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <label className="row card" style={{ cursor: 'pointer' }}>
           <span>Register as a Wi-Fi provider</span>
-          <input type="checkbox" style={{ width: 'auto' }} checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
+          <input name="asProvider" type="checkbox" style={{ width: 'auto' }} checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
         </label>
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 14 }}>{error}</div>}
         <button className="btn btn-primary" type="submit" disabled={loading}>
