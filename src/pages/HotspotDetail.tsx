@@ -71,7 +71,6 @@ export default function HotspotDetail() {
       if (!res.ok) {
         setError(data.error || 'Purchase failed')
       } else {
-        // send them straight to their voucher so they can redeem or resell
         navigate('/vouchers')
       }
     } catch {
@@ -96,17 +95,17 @@ export default function HotspotDetail() {
       <div className="subtitle">{hotspot.address}</div>
 
       {error && (
-  <div className="card">
-    <div style={{ color: 'var(--danger)', marginBottom: error.includes('Insufficient') ? 10 : 0 }}>
-      {error}
-    </div>
-    {error.includes('Insufficient') && (
-      <button className="btn btn-primary" onClick={() => navigate('/wallet')}>
-        Top Up Now
-      </button>
-    )}
-  </div>
-)}
+        <div className="card">
+          <div style={{ color: 'var(--danger)', marginBottom: error.includes('Insufficient') ? 10 : 0 }}>
+            {error}
+          </div>
+          {error.includes('Insufficient') && (
+            <button className="btn btn-primary" onClick={() => navigate('/wallet')}>
+              Top Up Now
+            </button>
+          )}
+        </div>
+      )}
 
       <div style={{ fontWeight: 600, margin: '10px 0' }}>Available Packages</div>
       {packages.length === 0 && <div className="text-dim">No packages listed yet.</div>}
