@@ -140,9 +140,14 @@ export default function AdminDashboard() {
   return (
     <div className="page" style={{ maxWidth: 600 }}>
       <div className="row" style={{ marginBottom: 20 }}>
-        <div className="title">Admin</div>
-        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>Sign out</button>
-      </div>
+  <div>
+    <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }} onClick={() => window.location.href = '/discover'}>
+      ← Back
+    </button>
+    <div className="title">Admin</div>
+  </div>
+  <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>Sign out</button>
+</div>
 
       <div className="row" style={{ gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {(['overview', 'fraud', 'withdrawals', 'settings'] as const).map((t) => (
