@@ -15,6 +15,8 @@ import ActiveSession from './pages/ActiveSession'
 import ProviderDashboard from './pages/ProviderDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import HotspotDetail from './pages/HotspotDetail'
+import Notifications from './pages/Notifications'
+import Invite from './pages/Invite'
 
 export default function App() {
   return (
@@ -44,8 +46,13 @@ export default function App() {
           <Route path="/provider" element={
             <ProtectedRoute><ProviderDashboard /></ProtectedRoute>
           } />
+          <Route path="/notifications" element={
+            <ProtectedRoute><Notifications /></ProtectedRoute>
+          } />
+          <Route path="/invite" element={
+            <ProtectedRoute><Invite /></ProtectedRoute>
+          } />
 
-          {/* Hidden admin route - never linked anywhere in the UI */}
           <Route path="/gridnet-control-x7q" element={
             <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
           } />
