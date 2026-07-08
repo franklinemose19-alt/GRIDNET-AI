@@ -1,9 +1,8 @@
-import HotspotDetail from './pages/HotspotDetail'
-import './index.css'
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import './index.css'
 
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -14,6 +13,7 @@ import Vouchers from './pages/Vouchers'
 import ActiveSession from './pages/ActiveSession'
 import ProviderDashboard from './pages/ProviderDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import HotspotDetail from './pages/HotspotDetail'
 
 export default function App() {
   return (
@@ -24,13 +24,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          <Route path="/hotspot/:id" element={
-          <ProtectedRoute><div className="page">Hotspot detail coming next
-          </div></ProtectedRoute>} />
-         <Route path="/hotspot/:id" element={
-  <ProtectedRoute><HotspotDetail /></ProtectedRoute>
-} />
-        <Route path="/discover" element={
+          <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
           <Route path="/wallet" element={
@@ -42,12 +36,17 @@ export default function App() {
           <Route path="/session/:sessionId" element={
             <ProtectedRoute><ActiveSession /></ProtectedRoute>
           } />
-
-          <Route path="/provider" element={
-            <ProtectedRoute allowedRoles={['provider']}><ProviderDashboard /></ProtectedRoute>
+          <Route path="/hotspot/:id" element={
+            <ProtectedRoute><HotspotDetail /></ProtectedRoute>
           } />
 
-          {/* Hidden admin route - never linked anywhere in the UI */}
+          {/* Any logged-in account can reach the Provider Dashboard now — no role gate.
+              Matches the "anyone can be the net" model: same account, no separate signup needed. */}
+          <Route path="/provider" element={
+            <ProtectedRoute><ProviderDashboard /></ProtectedRoute>
+          } />
+
+          {/* Hidden admin route - never linked anywhere in the UI, still role-gated */}
           <Route path="/gridnet-control-x7q" element={
             <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
           } />
