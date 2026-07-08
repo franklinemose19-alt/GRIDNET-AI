@@ -52,8 +52,11 @@ export default function Landing() {
       <Link to="/signup" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none', display: 'block', marginBottom: 10 }}>
         Get Started
       </Link>
-      <Link to="/login" className="btn btn-secondary" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+      <Link to="/login" className="btn btn-secondary" style={{ textAlign: 'center', textDecoration: 'none', display: 'block', marginBottom: 10 }}>
         Log In
+      </Link>
+      <Link to="/pricing" className="btn btn-secondary" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+        View Provider Pricing
       </Link>
 
       <div className="text-dim" style={{ textAlign: 'center', marginTop: 24, fontSize: 12 }}>
