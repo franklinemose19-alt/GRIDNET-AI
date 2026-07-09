@@ -57,8 +57,14 @@ export default function AdminDashboard() {
   const [bLinkUrl, setBLinkUrl] = useState('')
 
   const [busy, setBusy] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [scanMessage, setScanMessage] = useState('')
+  const [adContactName, setAdContactName] = useState('')
+const [adContactPhone, setAdContactPhone] = useState('')
+const [adContactWhatsapp, setAdContactWhatsapp] = useState('')
+const [adPrice7d, setAdPrice7d] = useState('')
+const [adPrice30d, setAdPrice30d] = useState('')
+const [showAdPromo, setShowAdPromo] = useState(true)
+const [loading, setLoading] = useState(true)
+const [scanMessage, setScanMessage] = useState('')
 
   useEffect(() => { load() }, [tab])
 
@@ -108,9 +114,37 @@ export default function AdminDashboard() {
   }
 
   async function loadBanners() {
-    const { data } = await supabase.from('home_banners').select('*').order('display_order', { ascending: true })
-    if (data) setBanners(data as Banner[])
+  const { data } = await supabase.from('home_banners').select('*').order('display_order', { ascending: true })
+  if (data) setBanners(data as Banner[])
+
+  const { data: settingsData } = await supabase
+    .from('platform_settings')
+    .select('ad_contact_name, ad_contact_phone, ad_contact_whatsapp, ad_price_7d, ad_price_30d, show_ad_promo')
+    .eq('id', 1)
+    .maybeSingle()
+
+  if (settingsData) {
+    setAdContactName(settingsData.ad_contact_name || '')
+    setAdContactPhone(settingsData.ad_contact_phone || '')
+    setAdContactWhatsapp(settingsData.ad_contact_whatsapp || '')
+    setAdPrice7d(String(settingsData.ad_price_7d ?? ''))
+    setAdPrice30d(String(settingsData.ad_price_30d ?? ''))
+    setShowAdPromo(settingsData.show_ad_promo ?? true)
   }
+}
+
+async function saveAdPromo() {
+  setBusy('adpromo')
+  await supabase.from('platform_settings').update({
+    ad_contact_name: adContactName,
+    ad_contact_phone: adContactPhone,
+    ad_contact_whatsapp: adContactWhatsapp,
+    ad_price_7d: Number(adPrice7d),
+    ad_price_30d: Number(adPrice30d),
+    show_ad_promo: showAdPromo,
+  }).eq('id', 1)
+  setBusy(null)
+}
 
   async function runFraudScan() {
     setBusy('scan')
@@ -303,10 +337,51 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'banners' && !loading && (
-        <>
-          <div className="text-dim" style={{ marginBottom: 12 }}>
-            This banner shows at the top of every user's Discover page. Paste a hosted image or video URL — no upload needed.
-          </div>
+  <>
+    <div className="text-dim" style={{ marginBottom: 12 }}>
+      This banner shows at the top of every user's Discover page. Paste a hosted image or video URL — no upload needed.
+    </div>
+
+    <div className="card">
+      <div style={{ fontWeight: 600, marginBottom: 10 }}>"Advertise Here" Contact Card</div>
+      <div className="text-dim" style={{ marginBottom: 10, fontSize: 12 }}>
+        Shows below the banner so businesses can see your ad pricing and reach you directly.
+      </div>
+      <input
+        placeholder="Display name (e.g. GRIDNET AI)"
+        value={adContactName}
+        onChange={(e) => setAdContactName(e.target.value)}
+      />
+      <input
+        placeholder="Phone (e.g. 0712345678)"
+        value={adContactPhone}
+        onChange={(e) => setAdContactPhone(e.target.value)}
+      />
+      <input
+        placeholder="WhatsApp number (e.g. 254712345678)"
+        value={adContactWhatsapp}
+        onChange={(e) => setAdContactWhatsapp(e.target.value)}
+      />
+      <input
+        type="number"
+        placeholder="7-day price (KSh)"
+        value={adPrice7d}
+        onChange={(e) => setAdPrice7d(e.target.value)}
+      />
+      <input
+        type="number"
+        placeholder="30-day price (KSh)"
+        value={adPrice30d}
+        onChange={(e) => setAdPrice30d(e.target.value)}
+      />
+      <label className="row card" style={{ cursor: 'pointer' }}>
+        <span>Show this card on Discover</span>
+        <input type="checkbox" style={{ width: 'auto' }} checked={showAdPromo} onChange={(e) => setShowAdPromo(e.target.checked)} />
+      </label>
+      <button className="btn btn-primary" disabled={busy === 'adpromo'} onClick={saveAdPromo}>
+        {busy === 'adpromo' ? 'Saving...' : 'Save Contact Card'}
+      </button>
+    </div>
 
           {banners.map((b) => (
             <div key={b.id} className="card">
