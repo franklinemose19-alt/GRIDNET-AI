@@ -8,6 +8,13 @@ interface Package { id: string; hotspot_id: string; name: string; duration_minut
 interface Subscription { tier: string; status: string; current_period_end: string }
 interface Suggestion { name: string; duration_minutes: number; price: number; data_limit_mb: number | null; speed_limit_mbps: number | null }
 
+const TIER_DATA_CAPS: Record<string, number | null> = {
+  free: 1024,
+  pro: 10240,
+  premium: null,
+  enterprise: null,
+}
+
 export default function ProviderDashboard() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
@@ -26,6 +33,8 @@ export default function ProviderDashboard() {
   const [pkgName, setPkgName] = useState('')
   const [pkgDuration, setPkgDuration] = useState('')
   const [pkgPrice, setPkgPrice] = useState('')
+  const [pkgDataLimit, setPkgDataLimit] = useState('')
+  const [pkgUnlimited, setPkgUnlimited] = useState(false)
 
   const [suggestingFor, setSuggestingFor] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -41,6 +50,9 @@ export default function ProviderDashboard() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const currentTier = (subscription?.tier || 'free') as keyof typeof TIER_DATA_CAPS
+  const dataCap = TIER_DATA_CAPS[currentTier]
 
   useEffect(() => { load() }, [])
 
@@ -95,18 +107,39 @@ export default function ProviderDashboard() {
     )
   }
 
+  function openAddPackage(hotspotId: string) {
+    setAddingPkgFor(hotspotId)
+    setPkgName('')
+    setPkgDuration('')
+    setPkgPrice('')
+    setPkgUnlimited(false)
+    // pre-fill a safe default within the tier cap so the field never starts empty/invalid
+    setPkgDataLimit(dataCap ? String(Math.min(dataCap, 500)) : '')
+  }
+
   async function handleAddPackage(e: React.FormEvent, hotspotId: string) {
     e.preventDefault()
     if (!user) return
+
+    if (!pkgUnlimited && dataCap && Number(pkgDataLimit) > dataCap) {
+      setError(`Your ${currentTier} tier allows a max package data limit of ${dataCap} MB. Lower the value or upgrade your plan.`)
+      return
+    }
+    if (pkgUnlimited && dataCap !== null) {
+      setError(`Your ${currentTier} tier doesn't allow unlimited data packages. Set a value up to ${dataCap} MB, or upgrade to Premium/Enterprise.`)
+      return
+    }
+
     setBusy(true)
     setError('')
 
     const { error: insertErr } = await supabase.from('packages').insert({
       provider_id: user.id, hotspot_id: hotspotId, name: pkgName,
       duration_minutes: Number(pkgDuration), price: Number(pkgPrice),
+      data_limit_mb: pkgUnlimited ? null : Number(pkgDataLimit),
     })
     if (insertErr) setError(insertErr.message)
-    else { setPkgName(''); setPkgDuration(''); setPkgPrice(''); setAddingPkgFor(null); await load() }
+    else { setAddingPkgFor(null); await load() }
     setBusy(false)
   }
 
@@ -234,7 +267,7 @@ export default function ProviderDashboard() {
       <div className="card">
         <div className="row" style={{ marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>Subscription</span>
-          <span className="badge badge-featured">{subscription?.tier?.toUpperCase() || 'FREE'}</span>
+          <span className="badge badge-featured">{currentTier.toUpperCase()}</span>
         </div>
         {subscription ? (
           <div className="text-dim">Renews {new Date(subscription.current_period_end).toLocaleDateString()}</div>
@@ -245,6 +278,9 @@ export default function ProviderDashboard() {
             <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('enterprise')}>Go Enterprise</button>
           </div>
         )}
+        <div className="text-dim" style={{ marginTop: 8, fontSize: 12 }}>
+          Data cap for packages: {dataCap ? `${dataCap} MB` : 'Unlimited allowed'}
+        </div>
         <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/pricing')}>
           View full plan comparison →
         </button>
@@ -271,6 +307,30 @@ export default function ProviderDashboard() {
               <input name="pkgName" placeholder="Package name (e.g. 1 Hour Pass)" value={pkgName} onChange={(e) => setPkgName(e.target.value)} required />
               <input name="pkgDuration" type="number" placeholder="Duration (minutes)" value={pkgDuration} onChange={(e) => setPkgDuration(e.target.value)} required />
               <input name="pkgPrice" type="number" placeholder="Price (KSh)" value={pkgPrice} onChange={(e) => setPkgPrice(e.target.value)} required />
+
+              {!pkgUnlimited && (
+                <input
+                  name="pkgDataLimit"
+                  type="number"
+                  placeholder={dataCap ? `Data limit MB (max ${dataCap})` : 'Data limit MB'}
+                  value={pkgDataLimit}
+                  onChange={(e) => setPkgDataLimit(e.target.value)}
+                  max={dataCap ?? undefined}
+                  required
+                />
+              )}
+
+              <label className="row card" style={{ cursor: dataCap === null ? 'pointer' : 'not-allowed', opacity: dataCap === null ? 1 : 0.5 }}>
+                <span>Unlimited data {dataCap !== null && '(requires Premium/Enterprise)'}</span>
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto' }}
+                  checked={pkgUnlimited}
+                  disabled={dataCap !== null}
+                  onChange={(e) => setPkgUnlimited(e.target.checked)}
+                />
+              </label>
+
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn btn-primary" disabled={busy} type="submit">Add Package</button>
                 <button className="btn btn-secondary" type="button" onClick={() => setAddingPkgFor(null)}>Cancel</button>
@@ -278,7 +338,7 @@ export default function ProviderDashboard() {
             </form>
           ) : (
             <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" onClick={() => setAddingPkgFor(h.id)}>+ Add Package</button>
+              <button className="btn btn-secondary" onClick={() => openAddPackage(h.id)}>+ Add Package</button>
               <button className="btn btn-secondary" onClick={() => handleGetSuggestions(h.id)}>✨ AI Suggest</button>
             </div>
           )}
