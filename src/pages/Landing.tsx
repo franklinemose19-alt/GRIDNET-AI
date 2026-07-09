@@ -3,49 +3,59 @@ import { Link } from 'react-router-dom'
 
 export default function Landing() {
   return (
-    <div className="page" style={{ maxWidth: 480, paddingTop: 40, paddingBottom: 60 }}>
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <div style={{
-          fontSize: 34, fontWeight: 800, letterSpacing: -0.5,
-          background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-green))',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-        }}>
-          GRIDNET AI
+    <div className="page" style={{ maxWidth: 480, paddingBottom: 50 }}>
+      <div className="hero-wrap">
+        <div className="radar-stage">
+          <div className="radar-ring r1" />
+          <div className="radar-ring r2" />
+          <div className="radar-ring r3" />
+          <div className="radar-ping p1" />
+          <div className="radar-ping p2" />
+          <div className="radar-ping p3" />
+          <div className="radar-core">📶</div>
         </div>
-        <div className="text-dim" style={{ fontSize: 15, marginTop: 6 }}>
-          Find internet nearby. Only pay for time you're connected.
+
+        <div className="hero-wordmark">GRIDNET AI</div>
+        <div className="hero-tagline">
+          Find internet nearby, in seconds. Only pay for the time you're actually connected.
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 22, marginBottom: 6 }}>📍</div>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Find Wi-Fi Near You</div>
-        <div className="text-dim">
-          See nearby hotspots ranked by distance and real reliability — not just who paid the most.
+      <div className="stat-strip">
+        <span>FREE FOR BUYERS</span>
+        <span>4 PROVIDER TIERS</span>
+        <span>KSH · M-PESA</span>
+      </div>
+
+      <div className="feature-row">
+        <div className="feature-icon icon-blue">📍</div>
+        <div>
+          <div className="feature-title">Find Wi-Fi Near You</div>
+          <div className="feature-desc">Nearby hotspots ranked by distance and real reliability — not just who paid the most.</div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 22, marginBottom: 6 }}>⏱️</div>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Fair, Adaptive Billing</div>
-        <div className="text-dim">
-          Your timer pauses automatically if you lose connection, and resumes the moment you're back — you never pay for downtime.
+      <div className="feature-row">
+        <div className="feature-icon icon-green">⏱️</div>
+        <div>
+          <div className="feature-title">Fair, Adaptive Billing</div>
+          <div className="feature-desc">Your timer pauses automatically if you lose connection, and resumes the moment you're back.</div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 22, marginBottom: 6 }}>🎟️</div>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Buy, Sell & Resell Vouchers</div>
-        <div className="text-dim">
-          Every purchase gives you a voucher code. Use it, or resell it to someone nearby who needs it now.
+      <div className="feature-row">
+        <div className="feature-icon icon-purple">🎟️</div>
+        <div>
+          <div className="feature-title">Buy, Sell & Resell Vouchers</div>
+          <div className="feature-desc">Every purchase gives you a voucher code. Use it now, gift it, or resell it to someone nearby.</div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 22, marginBottom: 6 }}>📶</div>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Be the Net</div>
-        <div className="text-dim">
-          Got Wi-Fi to spare? List it, set your price, and start earning — no approval process, no upfront cost.
+      <div className="feature-row" style={{ marginBottom: 26 }}>
+        <div className="feature-icon icon-amber">📶</div>
+        <div>
+          <div className="feature-title">Be the Net</div>
+          <div className="feature-desc">Got Wi-Fi to spare? List it, set your price, and start earning — no approval process, no upfront cost.</div>
         </div>
       </div>
 
@@ -59,7 +69,7 @@ export default function Landing() {
         View Provider Pricing
       </Link>
 
-      <div className="text-dim" style={{ textAlign: 'center', marginTop: 24, fontSize: 12 }}>
+      <div className="text-dim" style={{ textAlign: 'center', marginTop: 22, fontSize: 12 }}>
         Buying is always free. Only providers pay, and only when they earn.
       </div>
     </div>
