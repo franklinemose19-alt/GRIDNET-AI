@@ -23,11 +23,20 @@ interface FeaturedHotspot {
   health_score: number
 }
 
+interface Banner {
+  id: string
+  title: string
+  media_url: string
+  media_type: string
+  link_url: string | null
+}
+
 export default function Discover() {
   const { profile, user, signOut } = useAuth()
   const navigate = useNavigate()
   const [hotspots, setHotspots] = useState<RankedHotspot[]>([])
   const [featured, setFeatured] = useState<FeaturedHotspot[]>([])
+  const [banners, setBanners] = useState<Banner[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -36,6 +45,7 @@ export default function Discover() {
 
   useEffect(() => {
     loadUnreadCount()
+    loadBanners()
 
     if (!navigator.geolocation) {
       setLocationError('Location not supported on this device.')
@@ -55,6 +65,16 @@ export default function Discover() {
       { enableHighAccuracy: true, timeout: 8000 }
     )
   }, [])
+
+  async function loadBanners() {
+    const { data } = await supabase
+      .from('home_banners')
+      .select('id, title, media_url, media_type, link_url')
+      .eq('active', true)
+      .order('display_order', { ascending: true })
+      .limit(1)
+    if (data) setBanners(data as Banner[])
+  }
 
   async function loadUnreadCount() {
     if (!user) return
@@ -88,6 +108,15 @@ export default function Discover() {
     return 'badge-health-low'
   }
 
+  function handleBannerClick(banner: Banner) {
+    if (!banner.link_url) return
+    if (banner.link_url.startsWith('http')) {
+      window.open(banner.link_url, '_blank')
+    } else {
+      navigate(banner.link_url)
+    }
+  }
+
   const actions = [
     { label: 'Wallet', icon: '💰', iconClass: 'icon-green', path: '/wallet' },
     { label: 'Vouchers', icon: '🎟️', iconClass: 'icon-blue', path: '/vouchers' },
@@ -98,6 +127,22 @@ export default function Discover() {
 
   return (
     <div className="page">
+      {banners.length > 0 && (
+        <div
+          onClick={() => handleBannerClick(banners[0])}
+          style={{
+            width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 16,
+            cursor: banners[0].link_url ? 'pointer' : 'default',
+          }}
+        >
+          {banners[0].media_type === 'video' ? (
+            <video src={banners[0].media_url} autoPlay muted loop playsInline style={{ width: '100%', display: 'block' }} />
+          ) : (
+            <img src={banners[0].media_url} alt={banners[0].title} style={{ width: '100%', display: 'block' }} />
+          )}
+        </div>
+      )}
+
       <div className="row" style={{ marginBottom: 20 }}>
         <div>
           <div className="title">Nearby Wi-Fi</div>
