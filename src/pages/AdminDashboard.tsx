@@ -29,14 +29,33 @@ interface Withdrawal {
   created_at: string
 }
 
+interface Banner {
+  id: string
+  title: string
+  media_url: string
+  media_type: string
+  link_url: string | null
+  active: boolean
+  display_order: number
+  created_at: string
+}
+
 export default function AdminDashboard() {
   const { signOut } = useAuth()
-  const [tab, setTab] = useState<'overview' | 'fraud' | 'withdrawals' | 'settings'>('overview')
+  const [tab, setTab] = useState<'overview' | 'fraud' | 'withdrawals' | 'settings' | 'banners'>('overview')
 
   const [stats, setStats] = useState({ users: 0, providers: 0, hotspots: 0, commissionRevenue: 0, subscriptionRevenue: 0, resaleRevenue: 0 })
   const [flags, setFlags] = useState<FraudFlag[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [banners, setBanners] = useState<Banner[]>([])
+
+  const [showAddBanner, setShowAddBanner] = useState(false)
+  const [bTitle, setBTitle] = useState('')
+  const [bMediaUrl, setBMediaUrl] = useState('')
+  const [bMediaType, setBMediaType] = useState<'image' | 'video'>('image')
+  const [bLinkUrl, setBLinkUrl] = useState('')
+
   const [busy, setBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [scanMessage, setScanMessage] = useState('')
@@ -49,6 +68,7 @@ export default function AdminDashboard() {
     if (tab === 'fraud') await loadFraud()
     if (tab === 'withdrawals') await loadWithdrawals()
     if (tab === 'settings') await loadSettings()
+    if (tab === 'banners') await loadBanners()
     setLoading(false)
   }
 
@@ -85,6 +105,11 @@ export default function AdminDashboard() {
   async function loadSettings() {
     const { data } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle()
     if (data) setSettings(data as Settings)
+  }
+
+  async function loadBanners() {
+    const { data } = await supabase.from('home_banners').select('*').order('display_order', { ascending: true })
+    if (data) setBanners(data as Banner[])
   }
 
   async function runFraudScan() {
@@ -135,22 +160,50 @@ export default function AdminDashboard() {
     setBusy(null)
   }
 
+  async function handleAddBanner(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy('banner')
+    const { error } = await supabase.from('home_banners').insert({
+      title: bTitle, media_url: bMediaUrl, media_type: bMediaType,
+      link_url: bLinkUrl || null, display_order: banners.length,
+    })
+    if (!error) {
+      setBTitle(''); setBMediaUrl(''); setBLinkUrl(''); setBMediaType('image'); setShowAddBanner(false)
+      await loadBanners()
+    }
+    setBusy(null)
+  }
+
+  async function toggleBannerActive(id: string, active: boolean) {
+    setBusy(id)
+    await supabase.from('home_banners').update({ active: !active }).eq('id', id)
+    await loadBanners()
+    setBusy(null)
+  }
+
+  async function deleteBanner(id: string) {
+    setBusy(id)
+    await supabase.from('home_banners').delete().eq('id', id)
+    await loadBanners()
+    setBusy(null)
+  }
+
   const totalRevenue = stats.commissionRevenue + stats.subscriptionRevenue + stats.resaleRevenue
 
   return (
     <div className="page" style={{ maxWidth: 600 }}>
       <div className="row" style={{ marginBottom: 20 }}>
-  <div>
-    <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }} onClick={() => window.location.href = '/discover'}>
-      ← Back
-    </button>
-    <div className="title">Admin</div>
-  </div>
-  <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>Sign out</button>
-</div>
+        <div>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginBottom: 8 }} onClick={() => window.location.href = '/discover'}>
+            ← Back
+          </button>
+          <div className="title">Admin</div>
+        </div>
+        <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>Sign out</button>
+      </div>
 
       <div className="row" style={{ gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['overview', 'fraud', 'withdrawals', 'settings'] as const).map((t) => (
+        {(['overview', 'fraud', 'withdrawals', 'settings', 'banners'] as const).map((t) => (
           <button key={t} className={tab === t ? 'btn btn-primary' : 'btn btn-secondary'} style={{ width: 'auto', padding: '8px 14px', textTransform: 'capitalize' }} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -247,6 +300,53 @@ export default function AdminDashboard() {
             {busy === 'settings' ? 'Saving...' : 'Save Settings'}
           </button>
         </form>
+      )}
+
+      {tab === 'banners' && !loading && (
+        <>
+          <div className="text-dim" style={{ marginBottom: 12 }}>
+            This banner shows at the top of every user's Discover page. Paste a hosted image or video URL — no upload needed.
+          </div>
+
+          {banners.map((b) => (
+            <div key={b.id} className="card">
+              <div className="row" style={{ marginBottom: 6 }}>
+                <span style={{ fontWeight: 600 }}>{b.title}</span>
+                <span className={`badge ${b.active ? 'badge-health-good' : 'badge-health-low'}`}>{b.active ? 'ACTIVE' : 'HIDDEN'}</span>
+              </div>
+              <div className="text-dim" style={{ marginBottom: 10, wordBreak: 'break-all', fontSize: 12 }}>{b.media_url}</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-secondary" disabled={busy === b.id} onClick={() => toggleBannerActive(b.id, b.active)}>
+                  {b.active ? 'Hide' : 'Show'}
+                </button>
+                <button className="btn btn-secondary" disabled={busy === b.id} onClick={() => deleteBanner(b.id)}>Delete</button>
+              </div>
+            </div>
+          ))}
+
+          {showAddBanner ? (
+            <form onSubmit={handleAddBanner} className="card">
+              <input name="bTitle" placeholder="Banner title (internal reference)" value={bTitle} onChange={(e) => setBTitle(e.target.value)} required />
+              <input name="bMediaUrl" placeholder="Image or video URL" value={bMediaUrl} onChange={(e) => setBMediaUrl(e.target.value)} required />
+              <select
+                name="bMediaType"
+                value={bMediaType}
+                onChange={(e) => setBMediaType(e.target.value as 'image' | 'video')}
+                style={{ width: '100%', padding: 14, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', marginBottom: 12 }}
+              >
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+              </select>
+              <input name="bLinkUrl" placeholder="Link when tapped (optional)" value={bLinkUrl} onChange={(e) => setBLinkUrl(e.target.value)} />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-primary" disabled={busy === 'banner'} type="submit">Add Banner</button>
+                <button className="btn btn-secondary" type="button" onClick={() => setShowAddBanner(false)}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <button className="btn btn-primary" onClick={() => setShowAddBanner(true)}>+ Add Banner</button>
+          )}
+        </>
       )}
     </div>
   )
