@@ -31,12 +31,22 @@ interface Banner {
   link_url: string | null
 }
 
+interface AdPromo {
+  ad_contact_name: string
+  ad_contact_phone: string | null
+  ad_contact_whatsapp: string | null
+  ad_price_7d: number
+  ad_price_30d: number
+  show_ad_promo: boolean
+}
+
 export default function Discover() {
   const { profile, user, signOut } = useAuth()
   const navigate = useNavigate()
   const [hotspots, setHotspots] = useState<RankedHotspot[]>([])
   const [featured, setFeatured] = useState<FeaturedHotspot[]>([])
   const [banners, setBanners] = useState<Banner[]>([])
+  const [adPromo, setAdPromo] = useState<AdPromo | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -74,6 +84,13 @@ export default function Discover() {
       .order('display_order', { ascending: true })
       .limit(1)
     if (data) setBanners(data as Banner[])
+
+    const { data: promoData } = await supabase
+      .from('platform_settings')
+      .select('ad_contact_name, ad_contact_phone, ad_contact_whatsapp, ad_price_7d, ad_price_30d, show_ad_promo')
+      .eq('id', 1)
+      .maybeSingle()
+    if (promoData) setAdPromo(promoData as AdPromo)
   }
 
   async function loadUnreadCount() {
@@ -140,6 +157,40 @@ export default function Discover() {
           ) : (
             <img src={banners[0].media_url} alt={banners[0].title} style={{ width: '100%', display: 'block' }} />
           )}
+        </div>
+      )}
+
+      {adPromo?.show_ad_promo && (
+        <div className="card" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(34,197,94,0.08))' }}>
+          <div className="row" style={{ marginBottom: 6 }}>
+            <span style={{ fontWeight: 600 }}>📢 Advertise Here</span>
+            <span className="badge badge-featured">SPONSOR</span>
+          </div>
+          <div className="text-dim" style={{ marginBottom: 10 }}>
+            Reach everyone using {adPromo.ad_contact_name} · KSh {adPromo.ad_price_7d}/7 days or KSh {adPromo.ad_price_30d}/30 days
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            {adPromo.ad_contact_whatsapp && (
+              
+                href={`https://wa.me/${adPromo.ad_contact_whatsapp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{ textAlign: 'center', textDecoration: 'none' }}
+              >
+                WhatsApp
+              </a>
+            )}
+            {adPromo.ad_contact_phone && (
+              
+                href={`tel:${adPromo.ad_contact_phone}`}
+                className="btn btn-secondary"
+                style={{ textAlign: 'center', textDecoration: 'none' }}
+              >
+                Call
+              </a>
+            )}
+          </div>
         </div>
       )}
 
