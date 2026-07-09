@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import HotspotMap from '../components/HotspotMap'
 
 interface RankedHotspot {
   id: string
@@ -30,6 +31,8 @@ export default function Discover() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [view, setView] = useState<'list' | 'map'>('list')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     loadUnreadCount()
@@ -42,6 +45,7 @@ export default function Discover() {
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         await loadHotspots(pos.coords.latitude, pos.coords.longitude)
       },
       () => {
@@ -145,11 +149,33 @@ export default function Discover() {
         </div>
       )}
 
+      {!loading && !locationError && (
+        <>
+          <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+            <button className={view === 'list' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('list')}>
+              📋 List
+            </button>
+            <button className={view === 'map' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('map')}>
+              🗺️ Map
+            </button>
+          </div>
+
+          {view === 'map' && coords && (
+            <HotspotMap
+              hotspots={hotspots}
+              userLat={coords.lat}
+              userLng={coords.lng}
+              onSelect={(id) => navigate(`/hotspot/${id}`)}
+            />
+          )}
+        </>
+      )}
+
       {!loading && !locationError && hotspots.length === 0 && (
         <div className="card text-dim">No hotspots found near you yet.</div>
       )}
 
-      {hotspots.map((h) => (
+      {view === 'list' && hotspots.map((h) => (
         <div key={h.id} className="card" onClick={() => navigate(`/hotspot/${h.id}`)} style={{ cursor: 'pointer' }}>
           <div className="row" style={{ marginBottom: 6 }}>
             <div style={{ fontWeight: 600, fontSize: 16 }}>{h.name}</div>
