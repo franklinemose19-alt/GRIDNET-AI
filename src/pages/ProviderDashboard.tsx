@@ -245,6 +245,9 @@ export default function ProviderDashboard() {
             <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('enterprise')}>Go Enterprise</button>
           </div>
         )}
+        <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/pricing')}>
+          View full plan comparison →
+        </button>
       </div>
 
       <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>My Hotspots</div>
