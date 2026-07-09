@@ -84,6 +84,14 @@ export default function Discover() {
     return 'badge-health-low'
   }
 
+  const actions = [
+    { label: 'Wallet', icon: '💰', iconClass: 'icon-green', path: '/wallet' },
+    { label: 'Vouchers', icon: '🎟️', iconClass: 'icon-blue', path: '/vouchers' },
+    { label: 'Sell Wi-Fi', icon: '📶', iconClass: 'icon-amber', path: '/provider' },
+    { label: 'Alerts', icon: '🔔', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
+    { label: 'Invite', icon: '🎁', iconClass: 'icon-purple', path: '/invite' },
+  ]
+
   return (
     <div className="page">
       <div className="row" style={{ marginBottom: 20 }}>
@@ -98,23 +106,14 @@ export default function Discover() {
         </button>
       </div>
 
-      <div className="row" style={{ marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/wallet')}>💰 Wallet</button>
-        <button className="btn btn-secondary" onClick={() => navigate('/vouchers')}>🎟️ Vouchers</button>
-        <button className="btn btn-secondary" onClick={() => navigate('/provider')}>📶 Sell Wi-Fi</button>
-        <button className="btn btn-secondary" style={{ position: 'relative' }} onClick={() => navigate('/notifications')}>
-          🔔 Notifications
-          {unreadCount > 0 && (
-            <span style={{
-              position: 'absolute', top: -4, right: -4, background: 'var(--danger)', color: '#fff',
-              borderRadius: '50%', width: 18, height: 18, fontSize: 10, display: 'flex',
-              alignItems: 'center', justifyContent: 'center', fontWeight: 700,
-            }}>
-              {unreadCount}
-            </span>
-          )}
-        </button>
-        <button className="btn btn-secondary" onClick={() => navigate('/invite')}>🎁 Invite & Earn</button>
+      <div className="action-grid">
+        {actions.map((a) => (
+          <div key={a.label} className="action-tile" onClick={() => navigate(a.path)}>
+            <div className={`action-icon ${a.iconClass}`}>{a.icon}</div>
+            <div className="action-label">{a.label}</div>
+            {!!a.badge && <span className="action-badge">{a.badge}</span>}
+          </div>
+        ))}
       </div>
 
       {featured.length > 0 && (
