@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const tiers = [
   {
@@ -26,6 +27,7 @@ const tiers = [
 
 export default function Pricing() {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   return (
     <div className="page" style={{ maxWidth: 480 }}>
@@ -62,8 +64,12 @@ export default function Pricing() {
         </div>
       ))}
 
-      <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => navigate('/signup')}>
-        Get Started
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: 10 }}
+        onClick={() => navigate(user ? '/provider' : '/signup')}
+      >
+        {user ? 'Choose a Plan' : 'Get Started'}
       </button>
     </div>
   )
