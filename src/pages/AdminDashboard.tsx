@@ -40,15 +40,31 @@ interface Banner {
   created_at: string
 }
 
+interface Advertisement {
+  id: string
+  business_name: string
+  description: string
+  status: string
+  risk_level: string | null
+  moderation_reason: string | null
+  amount_paid: number
+  owner_type: string
+  image_urls: string[]
+  contact_phone: string | null
+  contact_whatsapp: string | null
+  created_at: string
+}
+
 export default function AdminDashboard() {
   const { signOut } = useAuth()
-  const [tab, setTab] = useState<'overview' | 'fraud' | 'withdrawals' | 'settings' | 'banners'>('overview')
+  const [tab, setTab] = useState<'overview' | 'fraud' | 'withdrawals' | 'settings' | 'banners' | 'ads'>('overview')
 
   const [stats, setStats] = useState({ users: 0, providers: 0, hotspots: 0, commissionRevenue: 0, subscriptionRevenue: 0, resaleRevenue: 0 })
   const [flags, setFlags] = useState<FraudFlag[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [banners, setBanners] = useState<Banner[]>([])
+  const [ads, setAds] = useState<Advertisement[]>([])
 
   const [showAddBanner, setShowAddBanner] = useState(false)
   const [bTitle, setBTitle] = useState('')
@@ -63,6 +79,13 @@ export default function AdminDashboard() {
   const [adPrice30d, setAdPrice30d] = useState('')
   const [showAdPromo, setShowAdPromo] = useState(true)
 
+  const [showOwnerAd, setShowOwnerAd] = useState(false)
+  const [oaName, setOaName] = useState('')
+  const [oaDescription, setOaDescription] = useState('')
+  const [oaImageUrl, setOaImageUrl] = useState('')
+  const [oaPhone, setOaPhone] = useState('')
+  const [oaWhatsapp, setOaWhatsapp] = useState('')
+
   const [busy, setBusy] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [scanMessage, setScanMessage] = useState('')
@@ -76,6 +99,7 @@ export default function AdminDashboard() {
     if (tab === 'withdrawals') await loadWithdrawals()
     if (tab === 'settings') await loadSettings()
     if (tab === 'banners') await loadBanners()
+    if (tab === 'ads') await loadAds()
     setLoading(false)
   }
 
@@ -134,16 +158,50 @@ export default function AdminDashboard() {
     }
   }
 
-  async function saveAdPromo() {
-    setBusy('adpromo')
-    await supabase.from('platform_settings').update({
-      ad_contact_name: adContactName,
-      ad_contact_phone: adContactPhone,
-      ad_contact_whatsapp: adContactWhatsapp,
-      ad_price_7d: Number(adPrice7d),
-      ad_price_30d: Number(adPrice30d),
-      show_ad_promo: showAdPromo,
-    }).eq('id', 1)
+  async function loadAds() {
+    const { data } = await supabase.from('advertisements').select('*').order('created_at', { ascending: false }).limit(50)
+    if (data) setAds(data as Advertisement[])
+  }
+
+  async function approveAd(id: string) {
+    setBusy(id)
+    const { data: pkgData } = await supabase
+      .from('advertisements')
+      .select('package_id, ad_packages(days)')
+      .eq('id', id)
+      .maybeSingle()
+    const days = pkgData && (pkgData as any).ad_packages ? (pkgData as any).ad_packages.days : 7
+    const endsAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    await supabase.from('advertisements').update({ status: 'active', starts_at: new Date().toISOString(), ends_at: endsAt }).eq('id', id)
+    await loadAds()
+    setBusy(null)
+  }
+
+  async function rejectAd(id: string) {
+    setBusy(id)
+    await supabase.from('advertisements').update({ status: 'rejected' }).eq('id', id)
+    await loadAds()
+    setBusy(null)
+  }
+
+  async function createOwnerAd(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy('owner-ad')
+    await supabase.from('advertisements').insert({
+      owner_type: 'owner',
+      business_name: oaName,
+      description: oaDescription,
+      image_urls: oaImageUrl ? [oaImageUrl] : [],
+      contact_phone: oaPhone || null,
+      contact_whatsapp: oaWhatsapp || null,
+      status: 'active',
+      risk_level: 'low',
+      amount_paid: 0,
+      starts_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    setOaName(''); setOaDescription(''); setOaImageUrl(''); setOaPhone(''); setOaWhatsapp(''); setShowOwnerAd(false)
+    await loadAds()
     setBusy(null)
   }
 
@@ -226,6 +284,19 @@ export default function AdminDashboard() {
     setBusy(null)
   }
 
+  async function saveAdPromo() {
+    setBusy('adpromo')
+    await supabase.from('platform_settings').update({
+      ad_contact_name: adContactName,
+      ad_contact_phone: adContactPhone,
+      ad_contact_whatsapp: adContactWhatsapp,
+      ad_price_7d: Number(adPrice7d),
+      ad_price_30d: Number(adPrice30d),
+      show_ad_promo: showAdPromo,
+    }).eq('id', 1)
+    setBusy(null)
+  }
+
   const totalRevenue = stats.commissionRevenue + stats.subscriptionRevenue + stats.resaleRevenue
 
   return (
@@ -241,7 +312,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="row" style={{ gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['overview', 'fraud', 'withdrawals', 'settings', 'banners'] as const).map((t) => (
+        {(['overview', 'fraud', 'withdrawals', 'settings', 'banners', 'ads'] as const).map((t) => (
           <button key={t} className={tab === t ? 'btn btn-primary' : 'btn btn-secondary'} style={{ width: 'auto', padding: '8px 14px', textTransform: 'capitalize' }} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -425,6 +496,60 @@ export default function AdminDashboard() {
           ) : (
             <button className="btn btn-primary" onClick={() => setShowAddBanner(true)}>+ Add Banner</button>
           )}
+        </>
+      )}
+
+      {tab === 'ads' && !loading && (
+        <>
+          <div className="text-dim" style={{ marginBottom: 12 }}>
+            Owner ads are free, unlimited, and always show first. Paid ads from businesses appear here for moderation before going live.
+          </div>
+
+          {showOwnerAd ? (
+            <form onSubmit={createOwnerAd} className="card">
+              <div style={{ fontWeight: 600, marginBottom: 10 }}>New Owner Ad</div>
+              <input placeholder="Title" value={oaName} onChange={(e) => setOaName(e.target.value)} required />
+              <input placeholder="Description" value={oaDescription} onChange={(e) => setOaDescription(e.target.value)} required />
+              <input placeholder="Image URL" value={oaImageUrl} onChange={(e) => setOaImageUrl(e.target.value)} />
+              <input placeholder="Phone (optional)" value={oaPhone} onChange={(e) => setOaPhone(e.target.value)} />
+              <input placeholder="WhatsApp (optional)" value={oaWhatsapp} onChange={(e) => setOaWhatsapp(e.target.value)} />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-primary" disabled={busy === 'owner-ad'} type="submit">Publish</button>
+                <button className="btn btn-secondary" type="button" onClick={() => setShowOwnerAd(false)}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => setShowOwnerAd(true)}>+ New Owner Ad</button>
+          )}
+
+          {ads.map((ad) => (
+            <div key={ad.id} className="card">
+              <div className="row" style={{ marginBottom: 6 }}>
+                <span style={{ fontWeight: 600 }}>{ad.business_name}</span>
+                <span className={`badge ${
+                  ad.status === 'active' ? 'badge-health-good'
+                  : ad.status === 'rejected' || ad.status === 'expired' ? 'badge-health-low'
+                  : 'badge-health-mid'
+                }`}>{ad.status.replace('_', ' ').toUpperCase()}</span>
+              </div>
+              <div className="text-dim" style={{ marginBottom: 6 }}>{ad.description}</div>
+              <div className="text-dim" style={{ marginBottom: 6, fontSize: 12 }}>
+                {ad.owner_type === 'owner' ? 'Owner ad · Free' : 'Paid · KSh ' + ad.amount_paid}
+                {ad.risk_level && ' · Risk: ' + ad.risk_level}
+              </div>
+              {ad.moderation_reason && (
+                <div className="text-dim" style={{ marginBottom: 10, fontSize: 12, fontStyle: 'italic' }}>
+                  AI note: {ad.moderation_reason}
+                </div>
+              )}
+              {ad.status === 'pending_review' && (
+                <div className="row" style={{ gap: 8 }}>
+                  <button className="btn btn-primary" disabled={busy === ad.id} onClick={() => approveAd(ad.id)}>Approve</button>
+                  <button className="btn btn-secondary" disabled={busy === ad.id} onClick={() => rejectAd(ad.id)}>Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
         </>
       )}
     </div>
