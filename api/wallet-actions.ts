@@ -253,6 +253,80 @@ async function handleBuyVoucherResale(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ success: true })
 }
 
+async function handleBuyAd(req: VercelRequest, res: VercelResponse) {
+  const {
+    advertiserId, packageId, businessName, description, category,
+    contactPhone, contactWhatsapp, locationAddress, imageUrls, riskLevel, moderationReason,
+  } = req.body
+
+  if (!advertiserId || !packageId || !businessName || !riskLevel) {
+    return res.status(400).json({ error: 'Missing fields' })
+  }
+
+  if (riskLevel === 'high') {
+    return res.status(400).json({ error: 'This advert did not pass safety review and cannot be published: ' + (moderationReason || '') })
+  }
+
+  const pkgResult = await supabaseAdmin.from('ad_packages').select('*').eq('id', packageId).maybeSingle()
+  const pkg = pkgResult.data
+  if (pkgResult.error || !pkg) return res.status(404).json({ error: 'Ad package not found' })
+
+  const walletResult = await supabaseAdmin.from('wallets').select('id, balance').eq('profile_id', advertiserId).maybeSingle()
+  const wallet = walletResult.data
+  if (!wallet) return res.status(404).json({ error: 'Wallet not found' })
+  if (Number(wallet.balance) < Number(pkg.price)) {
+    return res.status(400).json({ error: 'Insufficient wallet balance. Top up first.' })
+  }
+
+  await supabaseAdmin.from('wallets')
+    .update({ balance: Number(wallet.balance) - Number(pkg.price), updated_at: new Date().toISOString() })
+    .eq('id', wallet.id)
+
+  await supabaseAdmin.from('wallet_transactions').insert({
+    wallet_id: wallet.id, type: 'purchase', amount: pkg.price, status: 'completed',
+    metadata: { ad_package_id: packageId },
+  })
+
+  const status = riskLevel === 'low' ? 'active' : 'pending_review'
+  const startsAt = riskLevel === 'low' ? new Date().toISOString() : null
+  const endsAt = riskLevel === 'low' ? new Date(Date.now() + pkg.days * 24 * 60 * 60 * 1000).toISOString() : null
+
+  const adResult = await supabaseAdmin.from('advertisements').insert({
+    advertiser_id: advertiserId,
+    owner_type: 'paid',
+    business_name: businessName,
+    description: description || '',
+    category: category || null,
+    contact_phone: contactPhone || null,
+    contact_whatsapp: contactWhatsapp || null,
+    location_address: locationAddress || null,
+    image_urls: imageUrls || [],
+    package_id: packageId,
+    amount_paid: pkg.price,
+    status,
+    risk_level: riskLevel,
+    moderation_reason: moderationReason || null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+  }).select().single()
+
+  if (adResult.error) {
+    await supabaseAdmin.from('wallets').update({ balance: Number(wallet.balance) }).eq('id', wallet.id)
+    return res.status(500).json({ error: 'Payment taken but ad creation failed, wallet refunded' })
+  }
+
+  await supabaseAdmin.from('notifications').insert({
+    profile_id: advertiserId,
+    type: 'general',
+    title: status === 'active' ? 'Advert is now live' : 'Advert submitted for review',
+    message: status === 'active'
+      ? 'Your advert "' + businessName + '" is now showing on GRIDNET AI.'
+      : 'Your advert "' + businessName + '" needs a quick manual check before it goes live. We will notify you once approved.',
+  })
+
+  return res.status(200).json({ success: true, ad: adResult.data })
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -262,6 +336,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'purchase-package') return await handlePurchasePackage(req, res)
     if (action === 'redeem-voucher') return await handleRedeemVoucher(req, res)
     if (action === 'buy-voucher-resale') return await handleBuyVoucherResale(req, res)
+    if (action === 'buy-ad') return await handleBuyAd(req, res)
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
     console.error(err)
