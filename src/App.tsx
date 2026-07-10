@@ -17,7 +17,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import HotspotDetail from './pages/HotspotDetail'
 import Notifications from './pages/Notifications'
 import Invite from './pages/Invite'
-
+import Advertise from './pages/Advertise'
 export default function App() {
   return (
     <BrowserRouter>
@@ -52,7 +52,9 @@ export default function App() {
           <Route path="/invite" element={
             <ProtectedRoute><Invite /></ProtectedRoute>
           } />
-
+           <Route path="/advertise" element={
+            <ProtectedRoute><Advertise /></ProtectedRoute>
+          } />
           <Route path="/gridnet-control-x7q" element={
             <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
           } />
