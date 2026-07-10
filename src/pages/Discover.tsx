@@ -181,6 +181,10 @@ export default function Discover() {
     { label: 'Advertise any business', icon: '\u{1F4E2}', iconClass: 'icon-green', path: '/advertise' },
   ]
 
+  if (profile && profile.role === 'admin') {
+    actions.push({ label: 'Admin', icon: '\u{1F451}', iconClass: 'icon-red', path: '/gridnet-control-x7q' })
+  }
+
   return (
     <div className="page">
       {banners.length > 0 && (
