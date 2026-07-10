@@ -142,6 +142,13 @@ export default function Discover() {
     { label: 'Invite', icon: '🎁', iconClass: 'icon-purple', path: '/invite' },
   ]
 
+  const whatsappHref = adPromo?.ad_contact_whatsapp
+    ? 'https://wa.me/' + adPromo.ad_contact_whatsapp
+    : ''
+  const phoneHref = adPromo?.ad_contact_phone
+    ? 'tel:' + adPromo.ad_contact_phone
+    : ''
+
   return (
     <div className="page">
       {banners.length > 0 && (
@@ -160,19 +167,19 @@ export default function Discover() {
         </div>
       )}
 
-      {adPromo?.show_ad_promo && (
+      {adPromo && adPromo.show_ad_promo && (
         <div className="card" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(34,197,94,0.08))' }}>
           <div className="row" style={{ marginBottom: 6 }}>
-            <span style={{ fontWeight: 600 }}>📢 Advertise Here</span>
+            <span style={{ fontWeight: 600 }}>Advertise Here</span>
             <span className="badge badge-featured">SPONSOR</span>
           </div>
           <div className="text-dim" style={{ marginBottom: 10 }}>
-            Reach everyone using {adPromo.ad_contact_name} · KSh {adPromo.ad_price_7d}/7 days or KSh {adPromo.ad_price_30d}/30 days
+            Reach everyone using {adPromo.ad_contact_name} - KSh {adPromo.ad_price_7d}/7 days or KSh {adPromo.ad_price_30d}/30 days
           </div>
           <div className="row" style={{ gap: 8 }}>
-            {adPromo.ad_contact_whatsapp && (
+            {whatsappHref && (
               
-                href={`https://wa.me/${adPromo.ad_contact_whatsapp}`}
+                href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-primary"
@@ -181,9 +188,9 @@ export default function Discover() {
                 WhatsApp
               </a>
             )}
-            {adPromo.ad_contact_phone && (
+            {phoneHref && (
               
-                href={`tel:${adPromo.ad_contact_phone}`}
+                href={phoneHref}
                 className="btn btn-secondary"
                 style={{ textAlign: 'center', textDecoration: 'none' }}
               >
@@ -218,7 +225,7 @@ export default function Discover() {
 
       {featured.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>⭐ Featured Providers</div>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>Featured Providers</div>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
             {featured.map((f) => (
               <div
@@ -249,10 +256,10 @@ export default function Discover() {
         <>
           <div className="row" style={{ gap: 8, marginBottom: 12 }}>
             <button className={view === 'list' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('list')}>
-              📋 List
+              List
             </button>
             <button className={view === 'map' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('map')}>
-              🗺️ Map
+              Map
             </button>
           </div>
 
