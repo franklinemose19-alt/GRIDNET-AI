@@ -173,12 +173,12 @@ export default function Discover() {
   }
 
   const actions = [
-    { label: 'Wallet', icon: 'W', iconClass: 'icon-green', path: '/wallet' },
-    { label: 'Vouchers', icon: 'V', iconClass: 'icon-blue', path: '/vouchers' },
-    { label: 'Sell Wi-Fi', icon: 'S', iconClass: 'icon-amber', path: '/provider' },
-    { label: 'Alerts', icon: 'A', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
-    { label: 'Invite', icon: 'I', iconClass: 'icon-purple', path: '/invite' },
-    { label: 'Advertise', icon: 'D', iconClass: 'icon-green', path: '/advertise' },
+    { label: 'Wallet', icon: '\u{1F4B0}', iconClass: 'icon-green', path: '/wallet' },
+    { label: 'Vouchers', icon: '\u{1F39F}\u{FE0F}', iconClass: 'icon-blue', path: '/vouchers' },
+    { label: 'Sell Wi-Fi', icon: '\u{1F4F6}', iconClass: 'icon-amber', path: '/provider' },
+    { label: 'Alerts', icon: '\u{1F514}', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
+    { label: 'Invite', icon: '\u{1F381}', iconClass: 'icon-purple', path: '/invite' },
+    { label: 'Advertise any business', icon: '\u{1F4E2}', iconClass: 'icon-green', path: '/advertise' },
   ]
 
   return (
