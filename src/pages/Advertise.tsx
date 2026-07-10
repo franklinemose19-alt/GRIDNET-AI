@@ -12,6 +12,25 @@ interface AdPackage {
   days: number
 }
 
+interface MyAd {
+  id: string
+  business_name: string
+  description: string
+  status: string
+  risk_level: string | null
+  moderation_reason: string | null
+  amount_paid: number
+  impressions: number
+  clicks: number
+  ends_at: string | null
+  package_id: string | null
+  category: string | null
+  contact_phone: string | null
+  contact_whatsapp: string | null
+  location_address: string | null
+  image_urls: string[]
+}
+
 const DURATION_LABELS: Record<string, string> = {
   weekly: 'Weekly', monthly: 'Monthly', sixmonths: '6 Months', annual: 'Annual',
 }
@@ -20,9 +39,12 @@ export default function Advertise() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
+  const [mainTab, setMainTab] = useState<'new' | 'mine'>('new')
+
   const [packages, setPackages] = useState<AdPackage[]>([])
   const [selectedPkg, setSelectedPkg] = useState<AdPackage | null>(null)
   const [wallet, setWallet] = useState<{ balance: number } | null>(null)
+  const [myAds, setMyAds] = useState<MyAd[]>([])
 
   const [businessName, setBusinessName] = useState('')
   const [description, setDescription] = useState('')
@@ -42,22 +64,49 @@ export default function Advertise() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [mainTab])
 
   async function load() {
     if (!user) return
     setLoading(true)
-    const { data: pkgs } = await supabase.from('ad_packages').select('*').order('price', { ascending: true })
-    if (pkgs) setPackages(pkgs as AdPackage[])
 
-    const { data: w } = await supabase.from('wallets').select('balance').eq('profile_id', user.id).maybeSingle()
-    if (w) setWallet(w as any)
+    if (mainTab === 'new') {
+      const { data: pkgs } = await supabase.from('ad_packages').select('*').order('price', { ascending: true })
+      if (pkgs) setPackages(pkgs as AdPackage[])
+
+      const { data: w } = await supabase.from('wallets').select('balance').eq('profile_id', user.id).maybeSingle()
+      if (w) setWallet(w as any)
+    }
+
+    if (mainTab === 'mine') {
+      const { data: ads } = await supabase
+        .from('advertisements')
+        .select('id, business_name, description, status, risk_level, moderation_reason, amount_paid, impressions, clicks, ends_at, package_id, category, contact_phone, contact_whatsapp, location_address, image_urls')
+        .eq('advertiser_id', user.id)
+        .order('created_at', { ascending: false })
+      if (ads) setMyAds(ads as MyAd[])
+    }
+
     setLoading(false)
   }
 
   function selectPackage(pkg: AdPackage) {
     setSelectedPkg(pkg)
     setStep('details')
+  }
+
+  function startRenew(ad: MyAd) {
+    setMainTab('new')
+    setBusinessName(ad.business_name)
+    setDescription(ad.description)
+    setCategory(ad.category || '')
+    setContactPhone(ad.contact_phone || '')
+    setContactWhatsapp(ad.contact_whatsapp || '')
+    setLocationAddress(ad.location_address || '')
+    setImageUrl1(ad.image_urls && ad.image_urls[0] ? ad.image_urls[0] : '')
+    setImageUrl2(ad.image_urls && ad.image_urls[1] ? ad.image_urls[1] : '')
+    setImageUrl3(ad.image_urls && ad.image_urls[2] ? ad.image_urls[2] : '')
+    setStep('package')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -120,6 +169,18 @@ export default function Advertise() {
     setSubmitting(false)
   }
 
+  function statusBadgeClass(status: string) {
+    if (status === 'active') return 'badge-health-good'
+    if (status === 'rejected' || status === 'expired' || status === 'cancelled') return 'badge-health-low'
+    return 'badge-health-mid'
+  }
+
+  function isExpiringSoon(endsAt: string | null) {
+    if (!endsAt) return false
+    const daysLeft = (new Date(endsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    return daysLeft > 0 && daysLeft <= 3
+  }
+
   if (loading) return <div className="page center-screen">Loading...</div>
 
   return (
@@ -131,7 +192,65 @@ export default function Advertise() {
       <div className="title">Advertise on GRIDNET AI</div>
       <div className="subtitle">Reach everyone using the app, right from your wallet balance</div>
 
-      {step === 'package' && (
+      <div className="row" style={{ gap: 8, marginBottom: 16 }}>
+        <button className={mainTab === 'new' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => { setMainTab('new'); setStep('package') }}>
+          New Ad
+        </button>
+        <button className={mainTab === 'mine' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setMainTab('mine')}>
+          My Ads
+        </button>
+      </div>
+
+      {mainTab === 'mine' && (
+        <>
+          {myAds.length === 0 && <div className="card text-dim">You haven't created any adverts yet.</div>}
+          {myAds.map((ad) => (
+            <div key={ad.id} className="card">
+              <div className="row" style={{ marginBottom: 6 }}>
+                <span style={{ fontWeight: 600 }}>{ad.business_name}</span>
+                <span className={`badge ${statusBadgeClass(ad.status)}`}>{ad.status.replace('_', ' ').toUpperCase()}</span>
+              </div>
+              <div className="text-dim" style={{ marginBottom: 8 }}>{ad.description}</div>
+
+              {ad.status === 'pending_review' && ad.moderation_reason && (
+                <div className="text-dim" style={{ marginBottom: 8, fontSize: 12, fontStyle: 'italic' }}>
+                  Under review: {ad.moderation_reason}
+                </div>
+              )}
+              {ad.status === 'rejected' && ad.moderation_reason && (
+                <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--danger)' }}>
+                  Rejected: {ad.moderation_reason}
+                </div>
+              )}
+
+              <div className="row" style={{ marginBottom: 8 }}>
+                <span className="text-dim">Impressions</span>
+                <span>{ad.impressions}</span>
+              </div>
+              <div className="row" style={{ marginBottom: 8 }}>
+                <span className="text-dim">Clicks</span>
+                <span>{ad.clicks}</span>
+              </div>
+              {ad.ends_at && (
+                <div className="row" style={{ marginBottom: 8 }}>
+                  <span className="text-dim">Expires</span>
+                  <span style={{ color: isExpiringSoon(ad.ends_at) ? 'var(--warning)' : undefined }}>
+                    {new Date(ad.ends_at).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+
+              {(ad.status === 'active' || ad.status === 'expired' || ad.status === 'rejected') && (
+                <button className="btn btn-primary" onClick={() => startRenew(ad)}>
+                  {ad.status === 'expired' ? 'Renew' : ad.status === 'rejected' ? 'Edit & Resubmit' : 'Renew Early'}
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {mainTab === 'new' && step === 'package' && (
         <>
           <div className="card">
             <span className="text-dim">Wallet Balance</span>
@@ -155,7 +274,7 @@ export default function Advertise() {
         </>
       )}
 
-      {step === 'details' && selectedPkg && (
+      {mainTab === 'new' && step === 'details' && selectedPkg && (
         <form onSubmit={handleSubmit}>
           <div className="card">
             <div className="row">
@@ -190,11 +309,11 @@ export default function Advertise() {
         </form>
       )}
 
-      {step === 'result' && (
+      {mainTab === 'new' && step === 'result' && (
         <div className="card" style={{ textAlign: 'center', padding: 24 }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>{resultOk ? '✓' : '✕'}</div>
           <div style={{ marginBottom: 16 }}>{resultMsg}</div>
-          <button className="btn btn-primary" onClick={() => navigate('/discover')}>Back to Discover</button>
+          <button className="btn btn-primary" onClick={() => { setStep('package'); setMainTab('mine') }}>View My Ads</button>
         </div>
       )}
     </div>
