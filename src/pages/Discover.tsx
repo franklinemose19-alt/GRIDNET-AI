@@ -40,6 +40,16 @@ interface AdPromo {
   show_ad_promo: boolean
 }
 
+interface AdBanner {
+  id: string
+  business_name: string
+  description: string
+  image_urls: string[]
+  contact_phone: string | null
+  contact_whatsapp: string | null
+  owner_type: string
+}
+
 export default function Discover() {
   const { profile, user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -47,6 +57,7 @@ export default function Discover() {
   const [featured, setFeatured] = useState<FeaturedHotspot[]>([])
   const [banners, setBanners] = useState<Banner[]>([])
   const [adPromo, setAdPromo] = useState<AdPromo | null>(null)
+  const [adBanner, setAdBanner] = useState<AdBanner | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -93,6 +104,13 @@ export default function Discover() {
       .maybeSingle()
 
     if (settingsResult.data) setAdPromo(settingsResult.data as AdPromo)
+
+    const adBannerResult = await supabase.rpc('get_ad_banner')
+    if (adBannerResult.data && adBannerResult.data.length > 0) {
+      const ad = adBannerResult.data[0]
+      setAdBanner(ad as AdBanner)
+      supabase.rpc('increment_ad_impression', { p_ad_id: ad.id })
+    }
   }
 
   async function loadUnreadCount() {
@@ -136,6 +154,14 @@ export default function Discover() {
     }
   }
 
+  function handleAdClick() {
+    if (!adBanner) return
+    supabase.rpc('increment_ad_click', { p_ad_id: adBanner.id })
+    if (adBanner.contact_whatsapp) {
+      window.open('https://wa.me/' + adBanner.contact_whatsapp, '_blank')
+    }
+  }
+
   function openWhatsapp() {
     if (!adPromo || !adPromo.ad_contact_whatsapp) return
     window.open('https://wa.me/' + adPromo.ad_contact_whatsapp, '_blank')
@@ -152,6 +178,7 @@ export default function Discover() {
     { label: 'Sell Wi-Fi', icon: 'S', iconClass: 'icon-amber', path: '/provider' },
     { label: 'Alerts', icon: 'A', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
     { label: 'Invite', icon: 'I', iconClass: 'icon-purple', path: '/invite' },
+    { label: 'Advertise', icon: 'D', iconClass: 'icon-green', path: '/advertise' },
   ]
 
   return (
@@ -163,6 +190,19 @@ export default function Discover() {
           ) : (
             <img src={banners[0].media_url} alt={banners[0].title} className="banner-media" />
           )}
+        </div>
+      )}
+
+      {adBanner && (
+        <div className="card ad-promo-card" onClick={handleAdClick} style={{ cursor: adBanner.contact_whatsapp ? 'pointer' : 'default' }}>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <span style={{ fontWeight: 600 }}>{adBanner.business_name}</span>
+            <span className="badge badge-featured">{adBanner.owner_type === 'owner' ? 'GRIDNET AI' : 'SPONSORED'}</span>
+          </div>
+          {adBanner.image_urls && adBanner.image_urls[0] && (
+            <img src={adBanner.image_urls[0]} alt={adBanner.business_name} style={{ width: '100%', borderRadius: 10, marginBottom: 8 }} />
+          )}
+          <div className="text-dim">{adBanner.description}</div>
         </div>
       )}
 
