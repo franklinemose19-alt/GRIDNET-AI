@@ -113,7 +113,6 @@ export default function ProviderDashboard() {
     setPkgDuration('')
     setPkgPrice('')
     setPkgUnlimited(false)
-    // pre-fill a safe default within the tier cap so the field never starts empty/invalid
     setPkgDataLimit(dataCap ? String(Math.min(dataCap, 500)) : '')
   }
 
@@ -122,11 +121,11 @@ export default function ProviderDashboard() {
     if (!user) return
 
     if (!pkgUnlimited && dataCap && Number(pkgDataLimit) > dataCap) {
-      setError(`Your ${currentTier} tier allows a max package data limit of ${dataCap} MB. Lower the value or upgrade your plan.`)
+      setError('Your ' + currentTier + ' tier allows a max package data limit of ' + dataCap + ' MB. Lower the value or upgrade your plan.')
       return
     }
     if (pkgUnlimited && dataCap !== null) {
-      setError(`Your ${currentTier} tier doesn't allow unlimited data packages. Set a value up to ${dataCap} MB, or upgrade to Premium/Enterprise.`)
+      setError('Your ' + currentTier + ' tier does not allow unlimited data packages. Set a value up to ' + dataCap + ' MB, or upgrade to Premium/Enterprise.')
       return
     }
 
@@ -151,9 +150,9 @@ export default function ProviderDashboard() {
     setError('')
 
     try {
-      const res = await fetch('/api/ai-suggest-packages', {
+      const res = await fetch('/api/ai', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providerId: user.id, hotspotId }),
+        body: JSON.stringify({ action: 'suggest-packages', providerId: user.id, hotspotId }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error)
@@ -218,9 +217,9 @@ export default function ProviderDashboard() {
     if (!user) return
     setLoadingInsight(true)
     try {
-      const res = await fetch('/api/ai-insights', {
+      const res = await fetch('/api/ai', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providerId: user.id }),
+        body: JSON.stringify({ action: 'insights', providerId: user.id }),
       })
       const data = await res.json()
       setInsight(data.insight || 'Could not generate insight right now.')
