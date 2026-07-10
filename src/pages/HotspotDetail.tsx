@@ -61,10 +61,10 @@ export default function HotspotDetail() {
     setError('')
 
     try {
-      const res = await fetch('/api/purchase-package', {
+      const res = await fetch('/api/wallet-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, packageId }),
+        body: JSON.stringify({ action: 'purchase-package', userId: user.id, packageId }),
       })
       const data = await res.json()
 
