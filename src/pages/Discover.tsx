@@ -64,11 +64,11 @@ export default function Discover() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      function (pos) {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        await loadHotspots(pos.coords.latitude, pos.coords.longitude)
+        loadHotspots(pos.coords.latitude, pos.coords.longitude)
       },
-      () => {
+      function () {
         setLocationError('Enable location access to find hotspots near you.')
         setLoading(false)
       },
@@ -77,44 +77,46 @@ export default function Discover() {
   }, [])
 
   async function loadBanners() {
-    const { data } = await supabase
+    const bannerResult = await supabase
       .from('home_banners')
       .select('id, title, media_url, media_type, link_url')
       .eq('active', true)
       .order('display_order', { ascending: true })
       .limit(1)
-    if (data) setBanners(data as Banner[])
 
-    const { data: promoData } = await supabase
+    if (bannerResult.data) setBanners(bannerResult.data as Banner[])
+
+    const settingsResult = await supabase
       .from('platform_settings')
       .select('ad_contact_name, ad_contact_phone, ad_contact_whatsapp, ad_price_7d, ad_price_30d, show_ad_promo')
       .eq('id', 1)
       .maybeSingle()
-    if (promoData) setAdPromo(promoData as AdPromo)
+
+    if (settingsResult.data) setAdPromo(settingsResult.data as AdPromo)
   }
 
   async function loadUnreadCount() {
     if (!user) return
-    const { count } = await supabase
+    const result = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('profile_id', user.id)
       .eq('read', false)
-    setUnreadCount(count || 0)
+    setUnreadCount(result.count || 0)
   }
 
   async function loadHotspots(lat: number, lng: number) {
     setLoading(true)
     await supabase.rpc('sync_featured_status')
 
-    const { data, error } = await supabase.rpc('ranked_hotspots', {
+    const rankedResult = await supabase.rpc('ranked_hotspots', {
       user_lat: lat,
       user_lng: lng,
     })
-    if (!error && data) setHotspots(data as RankedHotspot[])
+    if (!rankedResult.error && rankedResult.data) setHotspots(rankedResult.data as RankedHotspot[])
 
-    const { data: featuredData } = await supabase.rpc('featured_hotspots')
-    if (featuredData) setFeatured(featuredData as FeaturedHotspot[])
+    const featuredResult = await supabase.rpc('featured_hotspots')
+    if (featuredResult.data) setFeatured(featuredResult.data as FeaturedHotspot[])
 
     setLoading(false)
   }
@@ -127,75 +129,58 @@ export default function Discover() {
 
   function handleBannerClick(banner: Banner) {
     if (!banner.link_url) return
-    if (banner.link_url.startsWith('http')) {
+    if (banner.link_url.indexOf('http') === 0) {
       window.open(banner.link_url, '_blank')
     } else {
       navigate(banner.link_url)
     }
   }
 
-  const actions = [
-    { label: 'Wallet', icon: '💰', iconClass: 'icon-green', path: '/wallet' },
-    { label: 'Vouchers', icon: '🎟️', iconClass: 'icon-blue', path: '/vouchers' },
-    { label: 'Sell Wi-Fi', icon: '📶', iconClass: 'icon-amber', path: '/provider' },
-    { label: 'Alerts', icon: '🔔', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
-    { label: 'Invite', icon: '🎁', iconClass: 'icon-purple', path: '/invite' },
-  ]
+  function openWhatsapp() {
+    if (!adPromo || !adPromo.ad_contact_whatsapp) return
+    window.open('https://wa.me/' + adPromo.ad_contact_whatsapp, '_blank')
+  }
 
-  const whatsappHref = adPromo?.ad_contact_whatsapp
-    ? 'https://wa.me/' + adPromo.ad_contact_whatsapp
-    : ''
-  const phoneHref = adPromo?.ad_contact_phone
-    ? 'tel:' + adPromo.ad_contact_phone
-    : ''
+  function callPhone() {
+    if (!adPromo || !adPromo.ad_contact_phone) return
+    window.location.href = 'tel:' + adPromo.ad_contact_phone
+  }
+
+  const actions = [
+    { label: 'Wallet', icon: 'W', iconClass: 'icon-green', path: '/wallet' },
+    { label: 'Vouchers', icon: 'V', iconClass: 'icon-blue', path: '/vouchers' },
+    { label: 'Sell Wi-Fi', icon: 'S', iconClass: 'icon-amber', path: '/provider' },
+    { label: 'Alerts', icon: 'A', iconClass: 'icon-red', path: '/notifications', badge: unreadCount },
+    { label: 'Invite', icon: 'I', iconClass: 'icon-purple', path: '/invite' },
+  ]
 
   return (
     <div className="page">
       {banners.length > 0 && (
-        <div
-          onClick={() => handleBannerClick(banners[0])}
-          style={{
-            width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 16,
-            cursor: banners[0].link_url ? 'pointer' : 'default',
-          }}
-        >
+        <div onClick={function () { handleBannerClick(banners[0]) }} className="banner-wrap">
           {banners[0].media_type === 'video' ? (
-            <video src={banners[0].media_url} autoPlay muted loop playsInline style={{ width: '100%', display: 'block' }} />
+            <video src={banners[0].media_url} autoPlay muted loop playsInline className="banner-media" />
           ) : (
-            <img src={banners[0].media_url} alt={banners[0].title} style={{ width: '100%', display: 'block' }} />
+            <img src={banners[0].media_url} alt={banners[0].title} className="banner-media" />
           )}
         </div>
       )}
 
       {adPromo && adPromo.show_ad_promo && (
-        <div className="card" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(34,197,94,0.08))' }}>
+        <div className="card ad-promo-card">
           <div className="row" style={{ marginBottom: 6 }}>
             <span style={{ fontWeight: 600 }}>Advertise Here</span>
             <span className="badge badge-featured">SPONSOR</span>
           </div>
           <div className="text-dim" style={{ marginBottom: 10 }}>
-            Reach everyone using {adPromo.ad_contact_name} - KSh {adPromo.ad_price_7d}/7 days or KSh {adPromo.ad_price_30d}/30 days
+            Reach everyone using {adPromo.ad_contact_name}. KSh {adPromo.ad_price_7d} per 7 days or KSh {adPromo.ad_price_30d} per 30 days.
           </div>
           <div className="row" style={{ gap: 8 }}>
-            {whatsappHref && (
-              
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-                style={{ textAlign: 'center', textDecoration: 'none' }}
-              >
-                WhatsApp
-              </a>
+            {adPromo.ad_contact_whatsapp && (
+              <button className="btn btn-primary" onClick={openWhatsapp}>WhatsApp</button>
             )}
-            {phoneHref && (
-              
-                href={phoneHref}
-                className="btn btn-secondary"
-                style={{ textAlign: 'center', textDecoration: 'none' }}
-              >
-                Call
-              </a>
+            {adPromo.ad_contact_phone && (
+              <button className="btn btn-secondary" onClick={callPhone}>Call</button>
             )}
           </div>
         </div>
@@ -205,7 +190,7 @@ export default function Discover() {
         <div>
           <div className="title">Nearby Wi-Fi</div>
           <div className="subtitle" style={{ marginBottom: 0 }}>
-            Hi {profile?.full_name?.split(' ')[0] || 'there'}
+            Hi {profile && profile.full_name ? profile.full_name.split(' ')[0] : 'there'}
           </div>
         </div>
         <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px', borderRadius: 10 }} onClick={signOut}>
@@ -214,31 +199,30 @@ export default function Discover() {
       </div>
 
       <div className="action-grid">
-        {actions.map((a) => (
-          <div key={a.label} className="action-tile" onClick={() => navigate(a.path)}>
-            <div className={`action-icon ${a.iconClass}`}>{a.icon}</div>
-            <div className="action-label">{a.label}</div>
-            {!!a.badge && <span className="action-badge">{a.badge}</span>}
-          </div>
-        ))}
+        {actions.map(function (a) {
+          return (
+            <div key={a.label} className="action-tile" onClick={function () { navigate(a.path) }}>
+              <div className={'action-icon ' + a.iconClass}>{a.icon}</div>
+              <div className="action-label">{a.label}</div>
+              {a.badge ? <span className="action-badge">{a.badge}</span> : null}
+            </div>
+          )
+        })}
       </div>
 
       {featured.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 600, marginBottom: 10 }}>Featured Providers</div>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-            {featured.map((f) => (
-              <div
-                key={f.id}
-                className="card"
-                style={{ minWidth: 160, flexShrink: 0, cursor: 'pointer' }}
-                onClick={() => navigate(`/hotspot/${f.id}`)}
-              >
-                <div className="badge badge-featured" style={{ marginBottom: 6 }}>FEATURED</div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
-                <div className="text-dim" style={{ fontSize: 12 }}>{f.address}</div>
-              </div>
-            ))}
+            {featured.map(function (f) {
+              return (
+                <div key={f.id} className="card featured-tile" onClick={function () { navigate('/hotspot/' + f.id) }}>
+                  <div className="badge badge-featured" style={{ marginBottom: 6 }}>FEATURED</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                  <div className="text-dim" style={{ fontSize: 12 }}>{f.address}</div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -248,51 +232,51 @@ export default function Discover() {
       {locationError && (
         <div className="card">
           <div style={{ marginBottom: 10 }}>{locationError}</div>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
+          <button className="btn btn-primary" onClick={function () { window.location.reload() }}>Retry</button>
         </div>
       )}
 
       {!loading && !locationError && (
-        <>
-          <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-            <button className={view === 'list' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('list')}>
-              List
-            </button>
-            <button className={view === 'map' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setView('map')}>
-              Map
-            </button>
-          </div>
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <button className={view === 'list' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={function () { setView('list') }}>
+            List
+          </button>
+          <button className={view === 'map' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={function () { setView('map') }}>
+            Map
+          </button>
+        </div>
+      )}
 
-          {view === 'map' && coords && (
-            <HotspotMap
-              hotspots={hotspots}
-              userLat={coords.lat}
-              userLng={coords.lng}
-              onSelect={(id) => navigate(`/hotspot/${id}`)}
-            />
-          )}
-        </>
+      {!loading && !locationError && view === 'map' && coords && (
+        <HotspotMap
+          hotspots={hotspots}
+          userLat={coords.lat}
+          userLng={coords.lng}
+          onSelect={function (id) { navigate('/hotspot/' + id) }}
+        />
       )}
 
       {!loading && !locationError && hotspots.length === 0 && (
         <div className="card text-dim">No hotspots found near you yet.</div>
       )}
 
-      {view === 'list' && hotspots.map((h) => (
-        <div key={h.id} className="card" onClick={() => navigate(`/hotspot/${h.id}`)} style={{ cursor: 'pointer' }}>
-          <div className="row" style={{ marginBottom: 6 }}>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>{h.name}</div>
-            {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
+      {view === 'list' && hotspots.map(function (h) {
+        return (
+          <div key={h.id} className="card" onClick={function () { navigate('/hotspot/' + h.id) }} style={{ cursor: 'pointer' }}>
+            <div className="row" style={{ marginBottom: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{h.name}</div>
+              {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
+            </div>
+            <div className="text-dim" style={{ marginBottom: 8 }}>{h.address}</div>
+            <div className="row">
+              <span className="text-dim">{h.distance_km} km away</span>
+              <span className={'badge ' + healthBadgeClass(h.health_score)}>
+                Health {h.health_score}
+              </span>
+            </div>
           </div>
-          <div className="text-dim" style={{ marginBottom: 8 }}>{h.address}</div>
-          <div className="row">
-            <span className="text-dim">{h.distance_km} km away</span>
-            <span className={`badge ${healthBadgeClass(h.health_score)}`}>
-              Health {h.health_score}
-            </span>
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
