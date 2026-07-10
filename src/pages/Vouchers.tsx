@@ -70,10 +70,10 @@ export default function Vouchers() {
     setBusy(voucherId)
     setError('')
     try {
-      const res = await fetch('/api/redeem-voucher', {
+      const res = await fetch('/api/wallet-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, voucherId }),
+        body: JSON.stringify({ action: 'redeem-voucher', userId: user.id, voucherId }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error)
@@ -120,10 +120,10 @@ export default function Vouchers() {
     setBusy(voucherId)
     setError('')
     try {
-      const res = await fetch('/api/buy-voucher-resale', {
+      const res = await fetch('/api/wallet-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buyerId: user.id, voucherId }),
+        body: JSON.stringify({ action: 'buy-voucher-resale', buyerId: user.id, voucherId }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error)
