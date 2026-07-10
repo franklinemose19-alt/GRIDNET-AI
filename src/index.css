@@ -268,3 +268,23 @@ input:focus { outline: none; border-color: var(--accent-blue); }
 }
 .feature-title { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
 .feature-desc { color: var(--text-dim); font-size: 13px; line-height: 1.45; }
+.banner-wrap {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.banner-media {
+  width: 100%;
+  display: block;
+}
+.ad-promo-card {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(34,197,94,0.08));
+}
+.featured-tile {
+  min-width: 160px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
