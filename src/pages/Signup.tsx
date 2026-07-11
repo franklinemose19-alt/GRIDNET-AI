@@ -44,6 +44,10 @@ export default function Signup() {
           <span>Register as a Wi-Fi provider</span>
           <input name="asProvider" type="checkbox" style={{ width: 'auto' }} checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
         </label>
+        <div className="text-dim" style={{ marginBottom: 12, textAlign: 'center', fontSize: 12 }}>
+  By signing up, you agree to GRIDNET AI's{' '}
+  <Link to="/legal" style={{ color: 'var(--accent-blue)' }}>Terms of Service and Privacy Policy</Link>.
+</div>
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 14 }}>{error}</div>}
         <button className="btn btn-primary" type="submit" disabled={loading}>
           {loading ? 'Creating account...' : 'Sign Up'}
