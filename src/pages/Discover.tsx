@@ -115,6 +115,7 @@ export default function Discover() {
 
   async function loadUnreadCount() {
     if (!user) return
+    await supabase.rpc('check_expiry_reminders')
     const result = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
