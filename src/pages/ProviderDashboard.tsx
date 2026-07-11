@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
-interface Hotspot { id: string; name: string; address: string; health_score: number; is_featured: boolean }
+interface Hotspot { id: string; name: string; address: string; health_score: number; is_featured: boolean; is_online: boolean }
 interface Package { id: string; hotspot_id: string; name: string; duration_minutes: number; price: number; active: boolean }
 interface Subscription { tier: string; status: string; current_period_end: string }
 interface Suggestion { name: string; duration_minutes: number; price: number; data_limit_mb: number | null; speed_limit_mbps: number | null }
@@ -60,7 +60,7 @@ export default function ProviderDashboard() {
     if (!user) return
     setLoading(true)
 
-    const { data: hs } = await supabase.from('hotspots').select('id, name, address, health_score, is_featured').eq('provider_id', user.id)
+    const { data: hs } = await supabase.from('hotspots').select('id, name, address, health_score, is_featured, is_online').eq('provider_id', user.id)
     if (hs) setHotspots(hs as Hotspot[])
 
     const hotspotIds = (hs || []).map((h) => h.id)
@@ -85,6 +85,11 @@ export default function ProviderDashboard() {
     }
 
     setLoading(false)
+  }
+
+  async function toggleOnline(hotspotId: string, currentStatus: boolean) {
+    await supabase.from('hotspots').update({ is_online: !currentStatus }).eq('id', hotspotId)
+    await load()
   }
 
   async function handleAddHotspot(e: React.FormEvent) {
@@ -290,9 +295,19 @@ export default function ProviderDashboard() {
         <div key={h.id} className="card">
           <div className="row" style={{ marginBottom: 4 }}>
             <div style={{ fontWeight: 600 }}>{h.name}</div>
-            {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
+            <div className="row" style={{ gap: 6, width: 'auto' }}>
+              {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
+              <span className={`badge ${h.is_online ? 'badge-health-good' : 'badge-health-low'}`}>
+                {h.is_online ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
           <div className="text-dim" style={{ marginBottom: 10 }}>{h.address} · Health {h.health_score}</div>
+
+          <label className="row card" style={{ cursor: 'pointer', marginBottom: 10 }}>
+            <span>{h.is_online ? 'Currently open for connections' : 'Currently closed / offline'}</span>
+            <input type="checkbox" style={{ width: 'auto' }} checked={h.is_online} onChange={() => toggleOnline(h.id, h.is_online)} />
+          </label>
 
           {packages.filter((p) => p.hotspot_id === h.id).map((p) => (
             <div key={p.id} className="row" style={{ padding: '6px 0', borderTop: '1px solid var(--border)' }}>
