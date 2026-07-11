@@ -33,31 +33,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+  async function loadOrCreateProfile(userId: string, fallbackName: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
 
-    if (!error && data) setProfile(data as Profile)
+    if (data) {
+      setProfile(data as Profile)
+      return
+    }
+
+    // no profile yet (first-time Google sign-in) - create a basic one now, then load it
+    const { error: insertError } = await supabase.from('profiles').insert({
+      id: userId,
+      full_name: fallbackName,
+      phone: null,
+      role: 'user',
+    })
+
+    if (!insertError) {
+      const { data: created } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+      if (created) setProfile(created as Profile)
+    }
   }
 
   async function refreshProfile() {
-    if (user) await loadProfile(user.id)
+    if (user) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      if (data) setProfile(data as Profile)
+    }
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
-      setLoading(false)
-    })
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
       if (session?.user) {
-        loadProfile(session.user.id)
+        const fallbackName = session.user.email ? session.user.email.split('@')[0] : 'there'
+        await loadOrCreateProfile(session.user.id, fallbackName)
+      }
+      setLoading(false)
+    }
+    init()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        setLoading(true)
+        const fallbackName = session.user.email ? session.user.email.split('@')[0] : 'there'
+        await loadOrCreateProfile(session.user.id, fallbackName)
+        setLoading(false)
       } else {
         setProfile(null)
       }
@@ -65,18 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => listener.subscription.unsubscribe()
   }, [])
-
-  async function ensureProfileExists(userId: string, fallbackName: string) {
-    const { data: existing } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle()
-    if (existing) return
-
-    await supabase.from('profiles').insert({
-      id: userId,
-      full_name: fallbackName,
-      phone: null,
-      role: 'user',
-    })
-  }
 
   async function signUp(email: string, password: string, fullName: string, phone: string, asProvider: boolean, referralCode?: string) {
     const { data, error } = await supabase.auth.signUp({ email, password })
@@ -107,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
-    await loadProfile(data.user.id)
+    await loadOrCreateProfile(data.user.id, fullName)
     return { error: null }
   }
 
@@ -144,10 +155,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
     setProfile(null)
   }
-
-  useEffect(() => {
-    if (user) ensureProfileExists(user.id, user.email ? user.email.split('@')[0] : 'there')
-  }, [user])
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signInWithGoogle, resetPassword, updatePassword, signOut, refreshProfile }}>
