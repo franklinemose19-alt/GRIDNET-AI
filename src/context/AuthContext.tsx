@@ -19,6 +19,9 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string, fullName: string, phone: string, asProvider: boolean, referralCode?: string) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signInWithGoogle: () => Promise<{ error: string | null }>
+  resetPassword: (email: string) => Promise<{ error: string | null }>
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -63,6 +66,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  async function ensureProfileExists(userId: string, fallbackName: string) {
+    const { data: existing } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle()
+    if (existing) return
+
+    await supabase.from('profiles').insert({
+      id: userId,
+      full_name: fallbackName,
+      phone: null,
+      role: 'user',
+    })
+  }
+
   async function signUp(email: string, password: string, fullName: string, phone: string, asProvider: boolean, referralCode?: string) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error: error.message }
@@ -102,13 +117,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null }
   }
 
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/discover' },
+    })
+    if (error) return { error: error.message }
+    return { error: null }
+  }
+
+  async function resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    })
+    if (error) return { error: error.message }
+    return { error: null }
+  }
+
+  async function updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { error: error.message }
+    return { error: null }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     setProfile(null)
   }
 
+  useEffect(() => {
+    if (user) ensureProfileExists(user.id, user.email ? user.email.split('@')[0] : 'there')
+  }, [user])
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signInWithGoogle, resetPassword, updatePassword, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
