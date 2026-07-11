@@ -14,7 +14,7 @@ interface Notification {
 
 const typeIcons: Record<string, string> = {
   payment: '💰', withdrawal: '🏧', connection_lost: '⚠️', connection_resumed: '✅',
-  voucher_expiry: '⏰', referral_reward: '🎁', general: '🔔',
+  voucher_expiry: '⏰', ad_expiry: '📢', referral_reward: '🎁', general: '🔔',
 }
 
 export default function Notifications() {
