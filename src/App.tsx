@@ -20,7 +20,8 @@ import Invite from './pages/Invite'
 import Advertise from './pages/Advertise'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
-export default function App() {
+import Legal from './pages/Legal'
+  export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/pricing" element={<Pricing />} />
 <Route path="/forgot-password" element={<ForgotPassword />} />
 <Route path="/reset-password" element={<ResetPassword />} />
+         <Route path="/legal" element={<Legal />} />
           <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
