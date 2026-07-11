@@ -18,6 +18,8 @@ import HotspotDetail from './pages/HotspotDetail'
 import Notifications from './pages/Notifications'
 import Invite from './pages/Invite'
 import Advertise from './pages/Advertise'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 export default function App() {
   return (
     <BrowserRouter>
@@ -27,7 +29,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/pricing" element={<Pricing />} />
-
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
