@@ -6,8 +6,11 @@ import { useAuth } from '../context/AuthContext'
 interface StoreInfo {
   business_name: string | null
   logo_url: string | null
+  cover_image_url: string | null
+  business_category: string | null
   store_description: string | null
   business_hours: string | null
+  store_slug: string | null
   full_name: string | null
   avg_rating: number
   total_ratings: number
@@ -49,13 +52,21 @@ export default function Storefront() {
     if (!providerId) return
     setLoading(true)
 
-    const storeResult = await supabase.rpc('get_provider_storefront', { p_provider_id: providerId })
+    const resolveResult = await supabase.rpc('resolve_provider_id', { p_identifier: providerId })
+    const resolvedId = resolveResult.data
+
+    if (!resolvedId) {
+      setLoading(false)
+      return
+    }
+
+    const storeResult = await supabase.rpc('get_provider_storefront', { p_provider_id: resolvedId })
     if (storeResult.data && storeResult.data.length > 0) setStore(storeResult.data[0] as StoreInfo)
 
     const hotspotsResult = await supabase
       .from('hotspots')
       .select('id, name, address, health_score, is_online')
-      .eq('provider_id', providerId)
+      .eq('provider_id', resolvedId)
       .eq('status', 'active')
     const hs = hotspotsResult.data || []
     setHotspots(hs as Hotspot[])
@@ -76,7 +87,7 @@ export default function Storefront() {
         .from('favorite_providers')
         .select('id')
         .eq('user_id', user.id)
-        .eq('provider_id', providerId)
+        .eq('provider_id', resolvedId)
         .maybeSingle()
       setIsFavorited(!!favResult.data)
     }
@@ -88,10 +99,14 @@ export default function Storefront() {
     if (!user || !providerId) return
     setBusy(true)
 
+    const resolveResult = await supabase.rpc('resolve_provider_id', { p_identifier: providerId })
+    const resolvedId = resolveResult.data
+    if (!resolvedId) { setBusy(false); return }
+
     if (isFavorited) {
-      await supabase.from('favorite_providers').delete().eq('user_id', user.id).eq('provider_id', providerId)
+      await supabase.from('favorite_providers').delete().eq('user_id', user.id).eq('provider_id', resolvedId)
     } else {
-      await supabase.from('favorite_providers').insert({ user_id: user.id, provider_id: providerId })
+      await supabase.from('favorite_providers').insert({ user_id: user.id, provider_id: resolvedId })
     }
     setIsFavorited(!isFavorited)
     setBusy(false)
@@ -113,6 +128,10 @@ export default function Storefront() {
         {'\u2190'} Back
       </button>
 
+      {store.cover_image_url && (
+        <img src={store.cover_image_url} alt="Store cover" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 16, marginBottom: 12 }} />
+      )}
+
       <div className="card" style={{ textAlign: 'center', padding: 24 }}>
         {store.logo_url ? (
           <img src={store.logo_url} alt="Store logo" style={{ width: 72, height: 72, borderRadius: 16, objectFit: 'cover', margin: '0 auto 12px' }} />
@@ -129,6 +148,10 @@ export default function Storefront() {
         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
           {store.business_name || store.full_name + "'s Store"}
         </div>
+
+        {store.business_category && (
+          <span className="badge badge-featured" style={{ marginBottom: 8, display: 'inline-block' }}>{store.business_category}</span>
+        )}
 
         {store.total_ratings > 0 ? (
           <div className="text-dim" style={{ marginBottom: 10 }}>
