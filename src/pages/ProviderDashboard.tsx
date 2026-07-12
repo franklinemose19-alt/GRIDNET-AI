@@ -60,6 +60,11 @@ export default function ProviderDashboard() {
   const [insight, setInsight] = useState('')
   const [loadingInsight, setLoadingInsight] = useState(false)
 
+  const [storeName, setStoreName] = useState('')
+  const [storeLogo, setStoreLogo] = useState('')
+  const [storeDesc, setStoreDesc] = useState('')
+  const [storeHours, setStoreHours] = useState('')
+
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [teamPhone, setTeamPhone] = useState('')
   const [teamRole, setTeamRole] = useState<'manager' | 'staff'>('staff')
@@ -104,6 +109,14 @@ export default function ProviderDashboard() {
     }
 
     if (!managedOwnerId) {
+      const { data: myProfile } = await supabase.from('profiles').select('business_name, logo_url, store_description, business_hours').eq('id', ownerId).maybeSingle()
+      if (myProfile) {
+        setStoreName(myProfile.business_name || '')
+        setStoreLogo(myProfile.logo_url || '')
+        setStoreDesc(myProfile.store_description || '')
+        setStoreHours(myProfile.business_hours || '')
+      }
+
       const { data: sub } = await supabase.from('provider_subscriptions')
         .select('tier, status, current_period_end').eq('provider_id', ownerId).eq('status', 'active').maybeSingle()
       setSubscription(sub as Subscription | null)
@@ -127,6 +140,18 @@ export default function ProviderDashboard() {
     }
 
     setLoading(false)
+  }
+
+  async function saveStorefront() {
+    if (!user) return
+    setBusy(true)
+    await supabase.from('profiles').update({
+      business_name: storeName || null,
+      logo_url: storeLogo || null,
+      store_description: storeDesc || null,
+      business_hours: storeHours || null,
+    }).eq('id', user.id)
+    setBusy(false)
   }
 
   async function toggleOnline(hotspotId: string, currentStatus: boolean) {
@@ -393,6 +418,18 @@ export default function ProviderDashboard() {
             </div>
             <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/pricing')}>
               View full plan comparison →
+            </button>
+          </div>
+
+          <div className="card">
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>Storefront</div>
+            <input placeholder="Business name" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+            <input placeholder="Logo image URL" value={storeLogo} onChange={(e) => setStoreLogo(e.target.value)} />
+            <input placeholder="Short description" value={storeDesc} onChange={(e) => setStoreDesc(e.target.value)} />
+            <input placeholder="Business hours (e.g. Mon-Sat 8am-8pm)" value={storeHours} onChange={(e) => setStoreHours(e.target.value)} />
+            <button className="btn btn-primary" disabled={busy} onClick={saveStorefront}>Save Storefront</button>
+            <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/store/' + user?.id)}>
+              Preview My Store →
             </button>
           </div>
 
