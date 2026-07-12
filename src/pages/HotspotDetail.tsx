@@ -9,6 +9,7 @@ interface Hotspot {
   address: string
   health_score: number
   is_featured: boolean
+  provider_id: string
 }
 
 interface Package {
@@ -39,7 +40,7 @@ export default function HotspotDetail() {
 
     const { data: h } = await supabase
       .from('hotspots')
-      .select('id, name, address, health_score, is_featured')
+      .select('id, name, address, health_score, is_featured, provider_id')
       .eq('id', id)
       .maybeSingle()
 
@@ -93,6 +94,11 @@ export default function HotspotDetail() {
         {hotspot.is_featured && <span className="badge badge-featured">FEATURED</span>}
       </div>
       <div className="subtitle">{hotspot.address}</div>
+      {hotspot.provider_id && (
+        <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13 }} onClick={() => navigate('/store/' + hotspot.provider_id)}>
+          View Full Store →
+        </button>
+      )}
 
       {error && (
         <div className="card">
