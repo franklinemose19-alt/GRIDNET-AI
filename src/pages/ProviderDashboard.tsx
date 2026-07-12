@@ -62,8 +62,12 @@ export default function ProviderDashboard() {
 
   const [storeName, setStoreName] = useState('')
   const [storeLogo, setStoreLogo] = useState('')
+  const [storeCover, setStoreCover] = useState('')
+  const [storeCategory, setStoreCategory] = useState('')
   const [storeDesc, setStoreDesc] = useState('')
   const [storeHours, setStoreHours] = useState('')
+  const [storeSlug, setStoreSlug] = useState('')
+  const [slugStatus, setSlugStatus] = useState('')
 
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [teamPhone, setTeamPhone] = useState('')
@@ -109,12 +113,15 @@ export default function ProviderDashboard() {
     }
 
     if (!managedOwnerId) {
-      const { data: myProfile } = await supabase.from('profiles').select('business_name, logo_url, store_description, business_hours').eq('id', ownerId).maybeSingle()
+      const { data: myProfile } = await supabase.from('profiles').select('business_name, logo_url, cover_image_url, business_category, store_description, business_hours, store_slug').eq('id', ownerId).maybeSingle()
       if (myProfile) {
         setStoreName(myProfile.business_name || '')
         setStoreLogo(myProfile.logo_url || '')
+        setStoreCover(myProfile.cover_image_url || '')
+        setStoreCategory(myProfile.business_category || '')
         setStoreDesc(myProfile.store_description || '')
         setStoreHours(myProfile.business_hours || '')
+        setStoreSlug(myProfile.store_slug || '')
       }
 
       const { data: sub } = await supabase.from('provider_subscriptions')
@@ -142,15 +149,27 @@ export default function ProviderDashboard() {
     setLoading(false)
   }
 
+  async function checkSlug() {
+    if (!user || !storeSlug) return
+    const cleaned = storeSlug.toLowerCase().replace(/[^a-z0-9-]/g, '')
+    setStoreSlug(cleaned)
+    const availResult = await supabase.rpc('is_slug_available', { p_slug: cleaned, p_owner_id: user.id })
+    setSlugStatus(availResult.data ? 'Available' : 'Already taken')
+  }
+
   async function saveStorefront() {
     if (!user) return
     setBusy(true)
-    await supabase.from('profiles').update({
+    const { error: updateErr } = await supabase.from('profiles').update({
       business_name: storeName || null,
       logo_url: storeLogo || null,
+      cover_image_url: storeCover || null,
+      business_category: storeCategory || null,
       store_description: storeDesc || null,
       business_hours: storeHours || null,
+      store_slug: storeSlug || null,
     }).eq('id', user.id)
+    if (updateErr) setError(updateErr.message.includes('duplicate') ? 'That store URL is already taken.' : updateErr.message)
     setBusy(false)
   }
 
@@ -425,10 +444,23 @@ export default function ProviderDashboard() {
             <div style={{ fontWeight: 600, marginBottom: 10 }}>Storefront</div>
             <input placeholder="Business name" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
             <input placeholder="Logo image URL" value={storeLogo} onChange={(e) => setStoreLogo(e.target.value)} />
+            <input placeholder="Cover image URL" value={storeCover} onChange={(e) => setStoreCover(e.target.value)} />
+            <input placeholder="Category (e.g. Cafe, Hotel, Apartment)" value={storeCategory} onChange={(e) => setStoreCategory(e.target.value)} />
             <input placeholder="Short description" value={storeDesc} onChange={(e) => setStoreDesc(e.target.value)} />
             <input placeholder="Business hours (e.g. Mon-Sat 8am-8pm)" value={storeHours} onChange={(e) => setStoreHours(e.target.value)} />
+
+            <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+              <input placeholder="Store URL (e.g. frankswifi)" value={storeSlug} onChange={(e) => { setStoreSlug(e.target.value); setSlugStatus('') }} style={{ marginBottom: 0 }} />
+              <button className="btn-secondary" style={{ width: 'auto', whiteSpace: 'nowrap' }} type="button" onClick={checkSlug}>Check</button>
+            </div>
+            {slugStatus && (
+              <div className="text-dim" style={{ marginBottom: 10, color: slugStatus === 'Available' ? 'var(--accent-green)' : 'var(--danger)' }}>
+                {slugStatus}
+              </div>
+            )}
+
             <button className="btn btn-primary" disabled={busy} onClick={saveStorefront}>Save Storefront</button>
-            <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/store/' + user?.id)}>
+            <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/store/' + (storeSlug || user?.id))}>
               Preview My Store →
             </button>
           </div>
