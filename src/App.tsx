@@ -21,7 +21,9 @@ import Advertise from './pages/Advertise'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Legal from './pages/Legal'
-  export default function App() {
+import Storefront from './pages/Storefront'
+
+export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -30,9 +32,10 @@ import Legal from './pages/Legal'
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/pricing" element={<Pricing />} />
-<Route path="/forgot-password" element={<ForgotPassword />} />
-<Route path="/reset-password" element={<ResetPassword />} />
-         <Route path="/legal" element={<Legal />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/legal" element={<Legal />} />
+
           <Route path="/discover" element={
             <ProtectedRoute><Discover /></ProtectedRoute>
           } />
@@ -57,9 +60,13 @@ import Legal from './pages/Legal'
           <Route path="/invite" element={
             <ProtectedRoute><Invite /></ProtectedRoute>
           } />
-           <Route path="/advertise" element={
+          <Route path="/advertise" element={
             <ProtectedRoute><Advertise /></ProtectedRoute>
           } />
+          <Route path="/store/:providerId" element={
+            <ProtectedRoute><Storefront /></ProtectedRoute>
+          } />
+
           <Route path="/gridnet-control-x7q" element={
             <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>
           } />
