@@ -134,6 +134,18 @@ export default function ProviderDashboard() {
     await load()
   }
 
+  async function handleDeleteHotspot(hotspotId: string) {
+    const confirmed = window.confirm('Delete this hotspot and all its packages? This cannot be undone.')
+    if (!confirmed) return
+
+    setBusy(true)
+    await supabase.from('packages').delete().eq('hotspot_id', hotspotId)
+    const { error: deleteErr } = await supabase.from('hotspots').delete().eq('id', hotspotId)
+    if (deleteErr) setError(deleteErr.message)
+    else await load()
+    setBusy(false)
+  }
+
   async function handleAddHotspot(e: React.FormEvent) {
     e.preventDefault()
     if (!effectiveOwnerId) return
@@ -372,179 +384,3 @@ export default function ProviderDashboard() {
             ) : (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" disabled={busy} onClick={() => handleSubscribe('pro')}>Go Pro</button>
-                <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('premium')}>Go Premium</button>
-                <button className="btn btn-secondary" disabled={busy} onClick={() => handleSubscribe('enterprise')}>Go Enterprise</button>
-              </div>
-            )}
-            <div className="text-dim" style={{ marginTop: 8, fontSize: 12 }}>
-              Data cap for packages: {dataCap ? `${dataCap} MB` : 'Unlimited allowed'}
-            </div>
-            <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8, marginTop: 10, fontSize: 13 }} onClick={() => navigate('/pricing')}>
-              View full plan comparison →
-            </button>
-          </div>
-
-          <div className="card">
-            <div className="row" style={{ marginBottom: 8 }}>
-              <span style={{ fontWeight: 600 }}>Team</span>
-              <span className="text-dim">{team.length}{teamCap !== null ? ' / ' + teamCap : ''}</span>
-            </div>
-
-            {team.length === 0 && <div className="text-dim" style={{ marginBottom: 10 }}>No team members yet.</div>}
-
-            {team.map((t) => (
-              <div key={t.id} className="row" style={{ padding: '8px 0', borderTop: '1px solid var(--border)' }}>
-                <div>
-                  <div>{t.profiles && t.profiles.full_name ? t.profiles.full_name : 'Unknown'}</div>
-                  <div className="text-dim" style={{ fontSize: 12, textTransform: 'capitalize' }}>{t.role}</div>
-                </div>
-                <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8 }} disabled={busy} onClick={() => removeTeamMember(t.id)}>
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            {showAddTeam ? (
-              <form onSubmit={handleAddTeamMember} style={{ marginTop: 10 }}>
-                <input name="teamPhone" placeholder="Their phone (e.g. 0712345678)" value={teamPhone} onChange={(e) => setTeamPhone(e.target.value)} required />
-                <select
-                  name="teamRole"
-                  value={teamRole}
-                  onChange={(e) => setTeamRole(e.target.value as 'manager' | 'staff')}
-                  style={{ width: '100%', padding: 14, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', marginBottom: 12 }}
-                >
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                </select>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="btn btn-primary" disabled={busy} type="submit">Add</button>
-                  <button className="btn btn-secondary" type="button" onClick={() => setShowAddTeam(false)}>Cancel</button>
-                </div>
-              </form>
-            ) : (
-              <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setShowAddTeam(true)}>+ Add Team Member</button>
-            )}
-          </div>
-        </>
-      )}
-
-      <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>{isTeamMember ? ownerName + "'s Hotspots" : 'My Hotspots'}</div>
-      {hotspots.map((h) => (
-        <div key={h.id} className="card">
-          <div className="row" style={{ marginBottom: 4 }}>
-            <div style={{ fontWeight: 600 }}>{h.name}</div>
-            <div className="row" style={{ gap: 6, width: 'auto' }}>
-              {h.is_featured && <span className="badge badge-featured">FEATURED</span>}
-              <span className={`badge ${h.is_online ? 'badge-health-good' : 'badge-health-low'}`}>
-                {h.is_online ? 'ONLINE' : 'OFFLINE'}
-              </span>
-            </div>
-          </div>
-          <div className="text-dim" style={{ marginBottom: 10 }}>{h.address} · Health {h.health_score}</div>
-
-          <label className="row card" style={{ cursor: 'pointer', marginBottom: 10 }}>
-            <span>{h.is_online ? 'Currently open for connections' : 'Currently closed / offline'}</span>
-            <input type="checkbox" style={{ width: 'auto' }} checked={h.is_online} onChange={() => toggleOnline(h.id, h.is_online)} />
-          </label>
-
-          {packages.filter((p) => p.hotspot_id === h.id).map((p) => (
-            <div key={p.id} className="row" style={{ padding: '6px 0', borderTop: '1px solid var(--border)' }}>
-              <span>{p.name} ({p.duration_minutes}min)</span>
-              <span>KSh {p.price}</span>
-            </div>
-          ))}
-
-          {addingPkgFor === h.id ? (
-            <form onSubmit={(e) => handleAddPackage(e, h.id)} style={{ marginTop: 10 }}>
-              <input name="pkgName" placeholder="Package name (e.g. 1 Hour Pass)" value={pkgName} onChange={(e) => setPkgName(e.target.value)} required />
-              <input name="pkgDuration" type="number" placeholder="Duration (minutes)" value={pkgDuration} onChange={(e) => setPkgDuration(e.target.value)} required />
-              <input name="pkgPrice" type="number" placeholder="Price (KSh)" value={pkgPrice} onChange={(e) => setPkgPrice(e.target.value)} required />
-
-              {!pkgUnlimited && (
-                <input
-                  name="pkgDataLimit"
-                  type="number"
-                  placeholder={dataCap ? `Data limit MB (max ${dataCap})` : 'Data limit MB'}
-                  value={pkgDataLimit}
-                  onChange={(e) => setPkgDataLimit(e.target.value)}
-                  max={dataCap ?? undefined}
-                  required
-                />
-              )}
-
-              <label className="row card" style={{ cursor: dataCap === null ? 'pointer' : 'not-allowed', opacity: dataCap === null ? 1 : 0.5 }}>
-                <span>Unlimited data {dataCap !== null && '(requires Premium/Enterprise)'}</span>
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto' }}
-                  checked={pkgUnlimited}
-                  disabled={dataCap !== null}
-                  onChange={(e) => setPkgUnlimited(e.target.checked)}
-                />
-              </label>
-
-              <div className="row" style={{ gap: 8 }}>
-                <button className="btn btn-primary" disabled={busy} type="submit">Add Package</button>
-                <button className="btn btn-secondary" type="button" onClick={() => setAddingPkgFor(null)}>Cancel</button>
-              </div>
-            </form>
-          ) : (
-            <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" onClick={() => openAddPackage(h.id)}>+ Add Package</button>
-              <button className="btn btn-secondary" onClick={() => handleGetSuggestions(h.id)}>✨ AI Suggest</button>
-            </div>
-          )}
-
-          {suggestingFor === h.id && (
-            <div style={{ marginTop: 12 }}>
-              {loadingSuggestions && <div className="text-dim">Generating suggestions...</div>}
-              {suggestions.map((s, i) => (
-                <div key={i} className="card" style={{ background: 'var(--surface-hover)' }}>
-                  <div className="row" style={{ marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600 }}>{s.name}</div>
-                    <div style={{ fontWeight: 700 }}>KSh {s.price}</div>
-                  </div>
-                  <div className="text-dim" style={{ marginBottom: 10 }}>
-                    {s.duration_minutes} min{s.data_limit_mb ? ` · ${s.data_limit_mb}MB` : ' · Unlimited data'}
-                    {s.speed_limit_mbps ? ` · up to ${s.speed_limit_mbps} Mbps` : ''}
-                  </div>
-                  <button className="btn btn-primary" disabled={addingSuggestion === i} onClick={() => handleAddSuggestion(h.id, s, i)}>
-                    {addingSuggestion === i ? 'Adding...' : 'Add This Package'}
-                  </button>
-                </div>
-              ))}
-              {!loadingSuggestions && (
-                <button className="btn btn-secondary" onClick={() => setSuggestingFor(null)}>Close Suggestions</button>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
-
-      {!isTeamMember && (showAddHotspot ? (
-        <form onSubmit={handleAddHotspot} className="card">
-          <input name="hsName" placeholder="Hotspot name" value={hsName} onChange={(e) => setHsName(e.target.value)} required />
-          <input name="hsAddress" placeholder="Address" value={hsAddress} onChange={(e) => setHsAddress(e.target.value)} required />
-          <div className="text-dim" style={{ marginBottom: 10 }}>Uses your current location for coordinates</div>
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn-primary" disabled={busy} type="submit">Register Hotspot</button>
-            <button className="btn btn-secondary" type="button" onClick={() => setShowAddHotspot(false)}>Cancel</button>
-          </div>
-        </form>
-      ) : (
-        <button className="btn btn-primary" onClick={() => setShowAddHotspot(true)}>+ Register New Hotspot</button>
-      ))}
-
-      {!isTeamMember && (
-        <>
-          <div style={{ fontWeight: 600, margin: '20px 0 10px' }}>Withdraw to M-Pesa</div>
-          <form onSubmit={handleWithdraw} className="card">
-            <input name="withdrawAmount" type="number" placeholder="Amount (KSh)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required />
-            <input name="withdrawPhone" placeholder="M-Pesa phone (e.g. 0712345678)" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} required />
-            <button className="btn btn-primary" disabled={busy} type="submit">Request Withdrawal</button>
-          </form>
-        </>
-      )}
-    </div>
-  )
-}
