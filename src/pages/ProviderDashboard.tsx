@@ -69,6 +69,9 @@ export default function ProviderDashboard() {
   const [storeSlug, setStoreSlug] = useState('')
   const [slugStatus, setSlugStatus] = useState('')
 
+  const [mikrotikScripts, setMikrotikScripts] = useState<Record<string, string>>({})
+  const [generatingScript, setGeneratingScript] = useState<string | null>(null)
+
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [teamPhone, setTeamPhone] = useState('')
   const [teamRole, setTeamRole] = useState<'manager' | 'staff'>('staff')
@@ -376,6 +379,48 @@ export default function ProviderDashboard() {
     setBusy(false)
   }
 
+  async function generateMikrotikScript(hotspotId: string) {
+    setGeneratingScript(hotspotId)
+
+    const hotspotPackages = packages.filter((p) => p.hotspot_id === hotspotId).map((p) => p.id)
+    if (hotspotPackages.length === 0) {
+      setMikrotikScripts((prev) => ({ ...prev, [hotspotId]: '# No packages found for this hotspot yet.' }))
+      setGeneratingScript(null)
+      return
+    }
+
+    const { data: vouchers } = await supabase
+      .from('vouchers')
+      .select('code, package_id')
+      .in('package_id', hotspotPackages)
+      .eq('status', 'unused')
+
+    if (!vouchers || vouchers.length === 0) {
+      setMikrotikScripts((prev) => ({ ...prev, [hotspotId]: '# No unused vouchers to sync right now.' }))
+      setGeneratingScript(null)
+      return
+    }
+
+    const packageMap: Record<string, number> = {}
+    packages.forEach((p) => { packageMap[p.id] = p.duration_minutes })
+
+    const lines = vouchers.map((v) => {
+      const minutes = packageMap[v.package_id] || 60
+      const hours = Math.floor(minutes / 60)
+      const mins = minutes % 60
+      const uptime = String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':00'
+      return '/ip hotspot user add name=' + v.code + ' password=' + v.code + ' limit-uptime=' + uptime + ' profile=default'
+    })
+
+    setMikrotikScripts((prev) => ({ ...prev, [hotspotId]: lines.join('\n') }))
+    setGeneratingScript(null)
+  }
+
+  function copyScript(hotspotId: string) {
+    const script = mikrotikScripts[hotspotId]
+    if (script) navigator.clipboard.writeText(script)
+  }
+
   if (loading) return <div className="page center-screen">Loading dashboard...</div>
 
   return (
@@ -532,6 +577,38 @@ export default function ProviderDashboard() {
             <button className="btn btn-secondary" style={{ marginBottom: 10, color: 'var(--danger)' }} disabled={busy} onClick={() => handleDeleteHotspot(h.id)}>
               Delete Hotspot
             </button>
+          )}
+
+          {!isTeamMember && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                <button className="btn btn-secondary" disabled={generatingScript === h.id} onClick={() => generateMikrotikScript(h.id)}>
+                  {generatingScript === h.id ? 'Generating...' : 'Generate MikroTik Sync Script'}
+                </button>
+                <button className="btn-secondary" style={{ width: 'auto', padding: '6px 12px', borderRadius: 8 }} onClick={() => navigate('/connect/' + h.id)}>
+                  Preview Portal
+                </button>
+              </div>
+              {mikrotikScripts[h.id] && (
+                <>
+                  <textarea
+                    readOnly
+                    value={mikrotikScripts[h.id]}
+                    style={{
+                      width: '100%', minHeight: 100, padding: 12, borderRadius: 10,
+                      border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)',
+                      fontFamily: 'monospace', fontSize: 12, marginBottom: 8,
+                    }}
+                  />
+                  <div className="row" style={{ gap: 8 }}>
+                    <button className="btn btn-secondary" onClick={() => copyScript(h.id)}>Copy Script</button>
+                  </div>
+                  <div className="text-dim" style={{ marginTop: 8, fontSize: 11 }}>
+                    Paste into Winbox Terminal or your router's config to add these vouchers as hotspot users. Run this each time you get new sales to keep your router in sync.
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           {packages.filter((p) => p.hotspot_id === h.id).map((p) => (
