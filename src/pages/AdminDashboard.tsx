@@ -59,7 +59,11 @@ export default function AdminDashboard() {
   const { signOut } = useAuth()
   const [tab, setTab] = useState<'overview' | 'fraud' | 'withdrawals' | 'settings' | 'banners' | 'ads'>('overview')
 
-  const [stats, setStats] = useState({ users: 0, providers: 0, hotspots: 0, commissionRevenue: 0, subscriptionRevenue: 0, resaleRevenue: 0 })
+  const [stats, setStats] = useState({
+    users: 0, providers: 0, hotspots: 0,
+    commissionRevenue: 0, subscriptionRevenue: 0, resaleRevenue: 0,
+    usersWalletTotal: 0, providersWalletTotal: 0, adminWalletTotal: 0,
+  })
   const [flags, setFlags] = useState<FraudFlag[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -117,9 +121,17 @@ export default function AdminDashboard() {
     const { data: subs } = await supabase.from('provider_subscriptions').select('monthly_price')
     const subscriptionRevenue = (subs || []).reduce((s, sub) => s + Number(sub.monthly_price), 0)
 
+    const walletBreakdownResult = await supabase.rpc('get_wallet_breakdown')
+    const breakdown = walletBreakdownResult.data && walletBreakdownResult.data[0]
+      ? walletBreakdownResult.data[0]
+      : { users_total: 0, providers_total: 0, admin_total: 0 }
+
     setStats({
       users: userCount || 0, providers: providerCount || 0, hotspots: hotspotCount || 0,
       commissionRevenue, subscriptionRevenue, resaleRevenue,
+      usersWalletTotal: Number(breakdown.users_total),
+      providersWalletTotal: Number(breakdown.providers_total),
+      adminWalletTotal: Number(breakdown.admin_total),
     })
   }
 
@@ -323,7 +335,23 @@ export default function AdminDashboard() {
 
       {tab === 'overview' && !loading && (
         <>
-          <div className="card"><div className="row"><span className="text-dim">Total Revenue</span><span style={{ fontWeight: 700, fontSize: 20 }}>KSh {totalRevenue.toFixed(2)}</span></div></div>
+          <div className="card" style={{ background: 'linear-gradient(135deg, rgba(245,196,0,0.14), rgba(255,193,7,0.08))' }}>
+            <div className="row"><span className="text-dim">Your Real Earnings</span><span style={{ fontWeight: 700, fontSize: 22 }}>KSh {totalRevenue.toFixed(2)}</span></div>
+            <div className="text-dim" style={{ marginTop: 6, fontSize: 12 }}>Commission + subscriptions + resale cuts. This is money you've actually earned.</div>
+          </div>
+
+          <div className="card">
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Money Held (not yours to spend)</div>
+            <div className="row"><span className="text-dim">Users' Wallet Balances</span><span>KSh {stats.usersWalletTotal.toFixed(2)}</span></div>
+            <div className="row"><span className="text-dim">Providers' Wallet Balances</span><span>KSh {stats.providersWalletTotal.toFixed(2)}</span></div>
+            {stats.adminWalletTotal > 0 && (
+              <div className="row"><span className="text-dim">Your Own Wallet</span><span>KSh {stats.adminWalletTotal.toFixed(2)}</span></div>
+            )}
+            <div className="text-dim" style={{ marginTop: 8, fontSize: 12 }}>
+              These balances belong to your users and providers. Your Till/Paybill should hold at least this much plus your own earnings — spending it would leave you unable to honor withdrawals or purchases.
+            </div>
+          </div>
+
           <div className="card">
             <div className="row"><span className="text-dim">Commission Revenue</span><span>KSh {stats.commissionRevenue.toFixed(2)}</span></div>
             <div className="row"><span className="text-dim">Subscription Revenue</span><span>KSh {stats.subscriptionRevenue.toFixed(2)}</span></div>
